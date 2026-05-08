@@ -822,10 +822,10 @@ Ya respondida en Cuestión 1.1. Resumen:
 
 ### Critical Files for Implementation
 
-- /Users/oswaldomaravilla/Proyectos/Pruebas/QR clientes/wifi-voucher-manager/src/renderer/styles/tokens.ts
-- /Users/oswaldomaravilla/Proyectos/Pruebas/QR clientes/wifi-voucher-manager/tailwind.config.ts
-- /Users/oswaldomaravilla/Proyectos/Pruebas/QR clientes/wifi-voucher-manager/src/renderer/pages/WaiterView.tsx
-- /Users/oswaldomaravilla/Proyectos/Pruebas/QR clientes/wifi-voucher-manager/src/renderer/pages/AdminView.tsx
-- /Users/oswaldomaravilla/Proyectos/Pruebas/QR clientes/wifi-voucher-manager/src/renderer/components/ChangePinWizard.tsx
+- /Users/oswaldomaravilla/Proyectos/Pruebas/qr-clientes/wifi-voucher-manager/src/renderer/styles/tokens.ts
+- /Users/oswaldomaravilla/Proyectos/Pruebas/qr-clientes/wifi-voucher-manager/tailwind.config.ts
+- /Users/oswaldomaravilla/Proyectos/Pruebas/qr-clientes/wifi-voucher-manager/src/renderer/pages/WaiterView.tsx
+- /Users/oswaldomaravilla/Proyectos/Pruebas/qr-clientes/wifi-voucher-manager/src/renderer/pages/AdminView.tsx
+- /Users/oswaldomaravilla/Proyectos/Pruebas/qr-clientes/wifi-voucher-manager/src/renderer/components/ChangePinWizard.tsx
 
 Frontend+UX specialist — listo para consolidación.

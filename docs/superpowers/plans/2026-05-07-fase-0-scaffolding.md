@@ -14,7 +14,7 @@
 - Decisiones D-001 a D-021: spec Sección 2
 - Validación bloqueante de noble: spec Sección 5 Fase 0 + `etapa2-qa.md`-equivalente (output del Hardware specialist Q9 en transcript)
 
-**Working directory para este plan:** `/Users/oswaldomaravilla/Proyectos/Pruebas/QR clientes/`. Las rutas absolutas en cada Task asumen este parent. Repo nuevo se crea en subcarpeta `wifi-voucher-manager/`.
+**Working directory para este plan:** `/Users/oswaldomaravilla/Proyectos/Pruebas/qr-clientes/`. Las rutas absolutas en cada Task asumen este parent. Repo nuevo se crea en subcarpeta `wifi-voucher-manager/`.
 
 ---
 
@@ -113,7 +113,7 @@ wifi-voucher-manager/
 
 ### Task 1: Crear subdirectorio del repo
 
-**Contexto:** el repo git ya existe en el directorio padre (`/Users/oswaldomaravilla/Proyectos/Pruebas/QR clientes/`) con remote `git@github.com:nemesis128/QR-Printer-Internet-for-Customers.git` y un `.gitignore` raíz que cubre `**/node_modules/`, `**/dist*/`, etc. NO se hace `git init` interno en `wifi-voucher-manager/` — sería un sub-repo y crearía conflictos.
+**Contexto:** el repo git ya existe en el directorio padre (`/Users/oswaldomaravilla/Proyectos/Pruebas/qr-clientes/`) con remote `git@github.com:nemesis128/QR-Printer-Internet-for-Customers.git` y un `.gitignore` raíz que cubre `**/node_modules/`, `**/dist*/`, etc. NO se hace `git init` interno en `wifi-voucher-manager/` — sería un sub-repo y crearía conflictos.
 
 **Files:**
 - Create: `wifi-voucher-manager/` (directorio)
@@ -121,7 +121,7 @@ wifi-voucher-manager/
 - [ ] **Step 1: Verificar que estás en el repo del padre**
 
 ```bash
-cd "/Users/oswaldomaravilla/Proyectos/Pruebas/QR clientes"
+cd "/Users/oswaldomaravilla/Proyectos/Pruebas/qr-clientes"
 git status
 ```
 
@@ -135,7 +135,7 @@ cd wifi-voucher-manager
 pwd
 ```
 
-Expected: `pwd` muestra `/Users/oswaldomaravilla/Proyectos/Pruebas/QR clientes/wifi-voucher-manager`.
+Expected: `pwd` muestra `/Users/oswaldomaravilla/Proyectos/Pruebas/qr-clientes/wifi-voucher-manager`.
 
 - [ ] **Step 3: Verificar que el `.gitignore` raíz cubre node_modules/dist desde aquí**
 
@@ -264,7 +264,7 @@ Contenido exacto:
 - [ ] **Step 2: Instalar dependencias**
 
 ```bash
-cd "/Users/oswaldomaravilla/Proyectos/Pruebas/QR clientes/wifi-voucher-manager"
+cd "/Users/oswaldomaravilla/Proyectos/Pruebas/qr-clientes/wifi-voucher-manager"
 npm install
 ```
 
