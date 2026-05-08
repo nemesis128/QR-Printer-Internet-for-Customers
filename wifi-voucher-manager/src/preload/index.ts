@@ -1,6 +1,13 @@
-import { contextBridge } from 'electron';
+import { contextBridge, ipcRenderer } from 'electron';
 
-contextBridge.exposeInMainWorld('api', {
-  // IpcAPI llega en Fase 1; por ahora exponemos namespace vacío para validar el patrón.
-  hello: () => 'hello from preload',
-});
+import type { IpcAPI, PrintVoucherResult, SystemHealth } from '../shared/types.js';
+
+const api: IpcAPI = {
+  waiter: {
+    getCurrentSSID: (): Promise<string> => ipcRenderer.invoke('waiter:get-current-ssid'),
+    getSystemHealth: (): Promise<SystemHealth> => ipcRenderer.invoke('waiter:get-system-health'),
+    printVoucher: (): Promise<PrintVoucherResult> => ipcRenderer.invoke('waiter:print-voucher'),
+  },
+};
+
+contextBridge.exposeInMainWorld('api', api);
