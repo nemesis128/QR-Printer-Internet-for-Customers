@@ -20,6 +20,7 @@ export default tseslint.config(
       'eslint.config.mjs',
       'vite.config.ts',
       'vitest.config.ts',
+      'playwright.config.ts',
       'index.html',
       'tests/**/*',
     ],
