@@ -12,11 +12,11 @@
     "npm": ">=10"
   },
   "scripts": {
-    "predev": "electron-rebuild -f -w better-sqlite3,@abandonware/noble,@thiagoelg/node-printer,serialport,argon2 && npm run build:preload",
+    "predev": "electron-rebuild -f -w better-sqlite3,@abandonware/noble,serialport,argon2 && npm run build:preload",
     "build:preload": "esbuild src/preload/index.ts --bundle --platform=node --external:electron --format=cjs --outfile=dist-electron/preload/index.js",
     "dev": "concurrently -k -n vite,electron -c blue,green \"npm run dev:renderer\" \"npm run dev:electron\"",
     "dev:renderer": "vite",
-    "dev:electron": "wait-on http://localhost:5173 && cross-env NODE_ENV=development NODE_OPTIONS=\"--import tsx/esm\" electron src/main/index.ts",
+    "dev:electron": "wait-on http://localhost:5173 && cross-env NODE_ENV=development ELECTRON_RUN_AS_NODE= NODE_OPTIONS=\"--import tsx/esm\" electron src/main/index.ts",
     "build": "npm run build:renderer && npm run build:electron && npm run build:preload",
     "build:renderer": "vite build",
     "build:electron": "tsc -p tsconfig.electron.json",
@@ -29,7 +29,7 @@
     "format": "prettier --write .",
     "smoke:noble": "cross-env NODE_OPTIONS=\"--import tsx/esm\" electron scripts/smoke-noble.ts",
     "db:migrate": "tsx src/main/db/cli/migrate.ts",
-    "predist": "electron-rebuild -f -w better-sqlite3,@abandonware/noble,@thiagoelg/node-printer,serialport,argon2 && npm run build && node scripts/verify-csp.mjs && node scripts/sanitize-build.mjs",
+    "predist": "electron-rebuild -f -w better-sqlite3,@abandonware/noble,serialport,argon2 && npm run build && node scripts/verify-csp.mjs && node scripts/sanitize-build.mjs",
     "dist": "electron-builder",
     "dist:win": "electron-builder --win nsis",
     "dist:mac": "electron-builder --mac dmg",
@@ -37,7 +37,6 @@
   },
   "dependencies": {
     "@abandonware/noble": "^1.9.2-25",
-    "@thiagoelg/node-printer": "^0.6.2",
     "argon2": "^0.44.0",
     "axios": "^1.7.7",
     "better-sqlite3": "^12.9.0",

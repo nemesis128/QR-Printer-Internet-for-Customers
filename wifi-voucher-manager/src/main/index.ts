@@ -1,9 +1,11 @@
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { app, BrowserWindow, session } from 'electron';
+import electron from 'electron';
 
 import { DEV_CSP, PROD_CSP } from './security/csp.js';
+
+const { app, BrowserWindow, session } = electron;
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
