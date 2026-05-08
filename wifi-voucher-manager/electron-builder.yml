@@ -1,0 +1,56 @@
+appId: com.okuni.wifi-voucher-manager
+productName: WiFi Voucher Manager
+copyright: Copyright © 2026 Okuni Solutions
+
+directories:
+  output: dist-installer
+  buildResources: build
+
+files:
+  - dist-electron/**/*
+  - dist/**/*
+  - resources/**/*
+  - package.json
+  - "!**/*.test.*"
+  - "!**/*.test.d.ts"
+  - "!**/__mocks__/**"
+  - "!tests/**"
+
+asarUnpack:
+  - "**/node_modules/better-sqlite3/**"
+  - "**/node_modules/@abandonware/noble/**"
+  - "**/node_modules/serialport/**"
+  - "**/node_modules/argon2/**"
+
+extraResources:
+  - from: resources
+    to: resources
+
+win:
+  target:
+    - target: nsis
+      arch: [x64]
+  icon: build/icon.png
+  executableName: WiFiVoucherManager
+  artifactName: "${productName} Setup ${version}.${ext}"
+  publisherName: Okuni Solutions
+
+nsis:
+  oneClick: false
+  allowToChangeInstallationDirectory: true
+  perMachine: false
+  createDesktopShortcut: always
+  createStartMenuShortcut: true
+  shortcutName: WiFi Voucher Manager
+  installerIcon: build/icon.png
+  uninstallerIcon: build/icon.png
+  language: "3082"
+  runAfterFinish: true
+
+mac:
+  target:
+    - target: dmg
+      arch: [arm64, x64]
+  icon: build/icon.png
+  category: public.app-category.business
+  darkModeSupport: false
