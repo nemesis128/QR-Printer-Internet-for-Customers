@@ -17,6 +17,7 @@ export default tseslint.config(
       '**/coverage/**',
       'src/preload/index.js',
       'scripts/**/*.mjs',
+      'scripts/**/*.ts',
       'eslint.config.mjs',
       'vite.config.ts',
       'vitest.config.ts',
