@@ -1,9 +1,11 @@
+import { Buffer } from 'node:buffer';
+
 import { EscPosBuilder } from '../escpos/builder.js';
 
 export interface VoucherPayload {
   business_name: string;
   ssid: string;
-  qrPng: Buffer;
+  qrPng: Buffer | string; // Buffer en uso directo, string base64 cuando viene de JSON
   footer_message: string;
   triggered_at: string;
   is_test?: boolean;
@@ -43,7 +45,7 @@ export function renderVoucher(payload: VoucherPayload, widthChars: 32 | 48): Uin
     .text(`Red: ${payload.ssid}`)
     .newline()
     .feed(1)
-    .image(payload.qrPng)
+    .image(typeof payload.qrPng === 'string' ? Buffer.from(payload.qrPng, 'base64') : payload.qrPng)
     .newline()
     .text('Escanea con tu camara')
     .newline()

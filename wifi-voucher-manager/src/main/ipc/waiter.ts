@@ -2,14 +2,20 @@ import electron from 'electron';
 
 import type { PrintVoucherResult, SystemHealth } from '../../shared/types.js';
 import type { PasswordRepository } from '../db/repositories/PasswordRepository.js';
+import type { PrinterRepository } from '../db/repositories/PrinterRepository.js';
+import type { PrintQueue } from '../services/PrintQueue.js';
 import type { QRService } from '../services/QRService.js';
 
 const { ipcMain } = electron;
 
 export interface WaiterHandlerDeps {
   passwords: PasswordRepository;
+  printers: PrinterRepository;
   qr: QRService;
+  queue: PrintQueue;
   defaultSsid: string;
+  businessName: string;
+  footerMessage: string;
 }
 
 export function registerWaiterHandlers(deps: WaiterHandlerDeps): void {
@@ -20,8 +26,10 @@ export function registerWaiterHandlers(deps: WaiterHandlerDeps): void {
 
   ipcMain.handle('waiter:get-system-health', async (): Promise<SystemHealth> => {
     const active = await deps.passwords.getActive();
+    const allPrinters = await deps.printers.list();
+    const activePrinter = allPrinters.find((p) => p.active === 1);
     return {
-      printerOnline: false,
+      printerOnline: activePrinter !== undefined,
       routerReachable: false,
       passwordValid: active !== null,
       schedulerRunning: false,
@@ -39,23 +47,38 @@ export function registerWaiterHandlers(deps: WaiterHandlerDeps): void {
         message: 'No hay contraseña vigente. Configura el sistema en Administración.',
       };
     }
+    const allPrinters = await deps.printers.list();
+    const activePrinter = allPrinters.find((p) => p.active === 1);
+    if (!activePrinter) {
+      return {
+        ok: false,
+        code: 'NO_ACTIVE_PRINTER',
+        message: 'No hay impresora activa. Configura una en Administración.',
+      };
+    }
     try {
       const generated = await deps.qr.generate({
         ssid: active.ssid,
         password: active.password,
       });
-      return {
-        ok: true,
-        ssid: active.ssid,
-        password: active.password,
-        payload: generated.payload,
-        dataUrl: generated.dataUrl,
-      };
+      const jobId = await deps.queue.enqueue({
+        printer_id: activePrinter.id,
+        use_case: 'voucher',
+        payload: {
+          business_name: deps.businessName,
+          ssid: active.ssid,
+          qrPng: generated.pngBuffer.toString('base64'),
+          footer_message: deps.footerMessage,
+          triggered_at: new Date().toISOString(),
+        },
+        triggered_by: 'waiter',
+      });
+      return { ok: true, jobId };
     } catch (err) {
       return {
         ok: false,
-        code: 'GENERATE_FAILED',
-        message: err instanceof Error ? err.message : 'Error generando QR',
+        code: 'ENQUEUE_FAILED',
+        message: err instanceof Error ? err.message : 'Error encolando job',
       };
     }
   });
