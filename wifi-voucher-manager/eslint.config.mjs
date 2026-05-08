@@ -18,6 +18,8 @@ export default tseslint.config(
       'src/preload/index.js',
       'scripts/**/*.mjs',
       'eslint.config.mjs',
+      'vite.config.ts',
+      'index.html',
     ],
   },
   js.configs.recommended,
