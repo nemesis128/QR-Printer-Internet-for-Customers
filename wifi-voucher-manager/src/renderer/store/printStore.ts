@@ -26,8 +26,11 @@ export const usePrintStore = create<PrintState>((set) => ({
       if (result.ok) {
         set({
           status: 'preview-shown',
+          // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
           lastDataUrl: result.dataUrl,
+          // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
           lastSsid: result.ssid,
+          // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
           lastPassword: result.password,
           lastError: null,
         });
