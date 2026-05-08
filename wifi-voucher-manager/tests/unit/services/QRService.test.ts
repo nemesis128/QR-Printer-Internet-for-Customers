@@ -121,3 +121,45 @@ describe('QRService.formatPayload', () => {
     expect(payload).toContain('T:WPA;');
   });
 });
+
+describe('QRService.generate (instancia)', () => {
+  it('produce PNG buffer válido y dataUrl matching', async () => {
+    const svc = new QRService();
+    const out = await svc.generate({
+      ssid: 'Restaurante',
+      password: 'ABCD23PQRS',
+    });
+
+    // PNG magic bytes
+    expect(out.pngBuffer.subarray(0, 4)).toEqual(Buffer.from([0x89, 0x50, 0x4e, 0x47]));
+    expect(out.pngBuffer.length).toBeGreaterThan(100);
+
+    // dataUrl
+    expect(out.dataUrl.startsWith('data:image/png;base64,')).toBe(true);
+    const base64Part = out.dataUrl.replace('data:image/png;base64,', '');
+    expect(Buffer.from(base64Part, 'base64')).toEqual(out.pngBuffer);
+
+    // payload string
+    expect(out.payload).toBe('WIFI:T:WPA;S:Restaurante;P:ABCD23PQRS;H:false;;');
+  });
+
+  it('errorCorrectionLevel M produce QR escaneable razonable (~384px width)', async () => {
+    const svc = new QRService();
+    const out = await svc.generate({
+      ssid: 'TestNet',
+      password: 'pwdpwd',
+    });
+    expect(out.pngBuffer.length).toBeGreaterThan(1000);
+  });
+
+  it('formato nopass funciona end-to-end', async () => {
+    const svc = new QRService();
+    const out = await svc.generate({
+      ssid: 'OpenNet',
+      password: '',
+      security: 'nopass',
+    });
+    expect(out.payload).toBe('WIFI:T:nopass;S:OpenNet;H:false;;');
+    expect(out.dataUrl.startsWith('data:image/png;base64,')).toBe(true);
+  });
+});
