@@ -13,6 +13,12 @@ import { QRService } from './services/QRService.js';
 
 const { app, BrowserWindow, session } = electron;
 
+// MUST be called before any app.getPath('userData') reference. In dev,
+// Electron defaults to 'Electron' as the app name and shares userData
+// with every other Electron project run from this machine. Setting it
+// here gives us our own '~/Library/Application Support/wifi-voucher-manager/'.
+app.setName('wifi-voucher-manager');
+
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 const DEFAULT_SSID = 'Restaurante-Clientes';
@@ -58,6 +64,7 @@ async function createWindow(): Promise<void> {
 
 async function bootstrap(): Promise<void> {
   const dbPath = path.join(app.getPath('userData'), 'data.db');
+  console.warn('[bootstrap] DB path:', dbPath);
   const db = createConnection({ filename: dbPath });
   await runMigrations(db);
 
