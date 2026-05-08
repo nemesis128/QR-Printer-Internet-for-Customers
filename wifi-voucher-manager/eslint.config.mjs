@@ -22,6 +22,8 @@ export default tseslint.config(
       'vite.config.ts',
       'vitest.config.ts',
       'playwright.config.ts',
+      'tailwind.config.ts',
+      'postcss.config.js',
       'index.html',
       'tests/**/*',
     ],
