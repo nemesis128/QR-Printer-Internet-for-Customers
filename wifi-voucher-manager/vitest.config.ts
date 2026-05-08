@@ -23,7 +23,14 @@ export default defineConfig({
         '**/types.ts',
       ],
       // Fase 0: thresholds desactivados (D-021). Se activan en Fase 1+ por carpeta.
-      thresholds: undefined,
+      thresholds: {
+        'src/main/services/QRService.ts': {
+          statements: 85,
+          branches: 85,
+          functions: 85,
+          lines: 85,
+        },
+      },
     },
   },
   resolve: {
