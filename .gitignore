@@ -1,0 +1,46 @@
+# Dependencies
+**/node_modules/
+.pnp
+.pnp.js
+
+# Build outputs
+**/dist/
+**/dist-electron/
+**/dist-installer/
+**/build/Release/
+**/*.tsbuildinfo
+
+# Tests + coverage
+**/coverage/
+**/.nyc_output/
+**/playwright-report/
+**/test-results/
+
+# Native modules rebuild artifacts
+**/*.node
+
+# Editor / OS
+.DS_Store
+.idea/
+.vscode/*
+!.vscode/extensions.json
+*.swp
+*.swo
+Thumbs.db
+
+# Env files
+.env
+.env.local
+.env.*.local
+
+# Logs
+**/npm-debug.log*
+**/*.log
+**/logs/
+
+# Electron-builder runtime data
+**/out/
+**/release/
+
+# tool-results / agent transcripts (no comprometer en repo)
+**/.claude/projects/
