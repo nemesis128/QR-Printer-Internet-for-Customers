@@ -1,6 +1,6 @@
 import type { Config } from 'tailwindcss';
 
-import { palette, radii, shadows, spacing, transitions, typography } from './src/renderer/styles/tokens.js';
+import { palette, radii, shadows, spacing, transitions, typography, zIndex } from './src/renderer/styles/tokens.js';
 
 const config: Config = {
   content: ['./index.html', './src/renderer/**/*.{ts,tsx}'],
@@ -24,6 +24,12 @@ const config: Config = {
       transitionDuration: {
         default: transitions.default.replace(' ease-out', ''),
         modal: transitions.modal.replace(' ease-out', ''),
+      },
+      zIndex: {
+        dropdown: String(zIndex.dropdown),
+        'modal-backdrop': String(zIndex.modalBackdrop),
+        modal: String(zIndex.modal),
+        banner: String(zIndex.banner),
       },
     },
   },
