@@ -3,11 +3,19 @@ import { fileURLToPath } from 'node:url';
 
 import electron from 'electron';
 
+import { createConnection } from './db/connection.js';
+import { PasswordRepository } from './db/repositories/PasswordRepository.js';
+import { runMigrations } from './db/run-migrations.js';
+import { registerWaiterHandlers } from './ipc/waiter.js';
 import { DEV_CSP, PROD_CSP } from './security/csp.js';
+import { PasswordService } from './services/PasswordService.js';
+import { QRService } from './services/QRService.js';
 
 const { app, BrowserWindow, session } = electron;
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
+
+const DEFAULT_SSID = 'Restaurante-Clientes';
 
 async function createWindow(): Promise<void> {
   const win = new BrowserWindow({
@@ -48,7 +56,34 @@ async function createWindow(): Promise<void> {
   win.once('ready-to-show', () => win.show());
 }
 
-void app.whenReady().then(() => {
+async function bootstrap(): Promise<void> {
+  const dbPath = path.join(app.getPath('userData'), 'data.db');
+  const db = createConnection({ filename: dbPath });
+  await runMigrations(db);
+
+  const passwords = new PasswordRepository(db);
+
+  const active = await passwords.getActive();
+  if (!active) {
+    await passwords.insert({
+      password: PasswordService.generate(),
+      ssid: DEFAULT_SSID,
+      active: 1,
+      rotated_by: 'seed',
+      router_response: null,
+    });
+  }
+
+  const qr = new QRService();
+
+  registerWaiterHandlers({ passwords, qr, defaultSsid: DEFAULT_SSID });
+
+  app.on('before-quit', () => {
+    void db.destroy();
+  });
+}
+
+void app.whenReady().then(async () => {
   session.defaultSession.webRequest.onHeadersReceived((details, callback) => {
     callback({
       responseHeaders: {
@@ -60,6 +95,7 @@ void app.whenReady().then(() => {
     });
   });
 
+  await bootstrap();
   void createWindow();
 
   app.on('activate', () => {
