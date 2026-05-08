@@ -18,21 +18,23 @@ describe('parseLpstatOutput', () => {
     const result = parseLpstatOutput(output);
     expect(result).toHaveLength(2);
     expect(result[0]).toMatchObject({
-      name: 'EPSON_TM-T20III',
+      label: 'Sistema: EPSON_TM-T20III',
       connection: 'usb',
       identifier: 'printer:EPSON_TM-T20III',
+      likelyEscPosCompatible: true,
     });
     expect(result[1]).toMatchObject({
-      name: 'Star_TSP650II',
+      label: 'Sistema: Star_TSP650II',
       connection: 'usb',
       identifier: 'printer:Star_TSP650II',
+      likelyEscPosCompatible: true,
     });
   });
 
-  it('infiere la marca correctamente', () => {
+  it('infiere suggestedType correctamente', () => {
     const output = 'printer EPSON_TM-T20III is idle.  enabled since Fri 01 Jan 2025 12:00:00';
     const result = parseLpstatOutput(output);
-    expect(result[0]?.brand).toBe('epson');
+    expect(result[0]?.suggestedType).toBe('epson');
   });
 
   it('retorna [] si no hay líneas de impresoras', () => {
@@ -55,9 +57,10 @@ describe('parseGetPrinterOutput', () => {
     const result = parseGetPrinterOutput(output);
     expect(result).toHaveLength(2);
     expect(result[0]).toMatchObject({
-      name: 'EPSON TM-T20III',
+      label: 'Sistema: EPSON TM-T20III',
       connection: 'usb',
       identifier: 'printer:EPSON TM-T20III',
+      likelyEscPosCompatible: true,
     });
   });
 
@@ -75,19 +78,15 @@ describe('parseGetPrinterOutput', () => {
 
 describe('parseWmicOutput', () => {
   it('extrae impresoras de salida de wmic printer get Name', () => {
-    const output = [
-      'Name',
-      'EPSON TM-T20III',
-      'Microsoft Print to PDF',
-      '',
-    ].join('\n');
+    const output = ['Name', 'EPSON TM-T20III', 'Microsoft Print to PDF', ''].join('\n');
 
     const result = parseWmicOutput(output);
     expect(result).toHaveLength(2);
     expect(result[0]).toMatchObject({
-      name: 'EPSON TM-T20III',
+      label: 'Sistema: EPSON TM-T20III',
       connection: 'usb',
       identifier: 'printer:EPSON TM-T20III',
+      likelyEscPosCompatible: true,
     });
   });
 
