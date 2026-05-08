@@ -1,27 +1,35 @@
+import { randomUUID } from 'node:crypto';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import electron from 'electron';
 
+import { BleDriver } from './adapters/printers/ble-driver.js';
+import { BluetoothDriver } from './adapters/printers/bluetooth-driver.js';
+import type { PrinterDriver } from './adapters/printers/driver-types.js';
+import { UsbDriver } from './adapters/printers/usb-driver.js';
 import { createConnection } from './db/connection.js';
 import { PasswordRepository } from './db/repositories/PasswordRepository.js';
+import { PrintJobRepository } from './db/repositories/PrintJobRepository.js';
+import { PrinterRepository } from './db/repositories/PrinterRepository.js';
 import { runMigrations } from './db/run-migrations.js';
+import { registerPrinterHandlers } from './ipc/printer.js';
 import { registerWaiterHandlers } from './ipc/waiter.js';
 import { DEV_CSP, PROD_CSP } from './security/csp.js';
 import { PasswordService } from './services/PasswordService.js';
+import { PrintQueue } from './services/PrintQueue.js';
 import { QRService } from './services/QRService.js';
+import { renderPrintBytes } from './services/render.js';
 
 const { app, BrowserWindow, session } = electron;
 
-// MUST be called before any app.getPath('userData') reference. In dev,
-// Electron defaults to 'Electron' as the app name and shares userData
-// with every other Electron project run from this machine. Setting it
-// here gives us our own '~/Library/Application Support/wifi-voucher-manager/'.
 app.setName('wifi-voucher-manager');
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 const DEFAULT_SSID = 'Restaurante-Clientes';
+const DEFAULT_BUSINESS_NAME = 'Mi Restaurante';
+const DEFAULT_FOOTER = '¡Gracias por tu visita!';
 
 async function createWindow(): Promise<void> {
   const win = new BrowserWindow({
@@ -69,7 +77,10 @@ async function bootstrap(): Promise<void> {
   await runMigrations(db);
 
   const passwords = new PasswordRepository(db);
+  const printers = new PrinterRepository(db);
+  const jobs = new PrintJobRepository(db);
 
+  // Seed password si no hay activa
   const active = await passwords.getActive();
   if (!active) {
     await passwords.insert({
@@ -81,9 +92,49 @@ async function bootstrap(): Promise<void> {
     });
   }
 
-  const qr = new QRService();
+  // Seed printer si no hay ninguna
+  const allPrinters = await printers.list();
+  if (allPrinters.length === 0) {
+    await printers.create({
+      id: randomUUID(),
+      name: 'Aomus My A1 (placeholder)',
+      connection: 'bluetooth-ble',
+      identifier: 'placeholder|svc|char',
+      width_chars: 32,
+      active: 1,
+      notes: 'Configura el identifier real desde AdminView (Fase 3)',
+    });
+    console.warn('[bootstrap] Sembrada impresora placeholder. Reemplazar el identifier desde AdminView en Fase 3.');
+  }
 
-  registerWaiterHandlers({ passwords, qr, defaultSsid: DEFAULT_SSID });
+  const drivers: Record<'usb' | 'bluetooth' | 'bluetooth-ble', PrinterDriver> = {
+    usb: new UsbDriver(),
+    bluetooth: new BluetoothDriver(),
+    'bluetooth-ble': new BleDriver(),
+  };
+
+  const qr = new QRService();
+  const queue = new PrintQueue({
+    db,
+    jobs,
+    printers,
+    drivers,
+    renderBytes: renderPrintBytes,
+  });
+
+  queue.bootstrap();
+
+  registerWaiterHandlers({
+    passwords,
+    printers,
+    qr,
+    queue,
+    defaultSsid: DEFAULT_SSID,
+    businessName: DEFAULT_BUSINESS_NAME,
+    footerMessage: DEFAULT_FOOTER,
+  });
+
+  registerPrinterHandlers({ printers, jobs, queue, drivers });
 
   app.on('before-quit', () => {
     void db.destroy();
