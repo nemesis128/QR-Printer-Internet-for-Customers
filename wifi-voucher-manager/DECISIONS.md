@@ -276,8 +276,70 @@ v8-internal.h:504:72: error: expected '(' for function-style cast or type constr
 
 **Impacto:** La métrica `successfulRotations` en `StatsService` filtra `json_extract(payload, '$.success') = 1`, por lo que estos stubs no inflan el conteo. La rotación real reemplaza el cuerpo del handler en Fase 5 sin tocar el shim IPC.
 
+**Resuelta en Fase 4 Task 22:** el handler ahora genera una nueva password con `PasswordService.generate()`, la inserta en `passwords` (active=0), llama a `RouterService.applyPasswordNow`, y al éxito marca active=1 + applied_method=auto. Al fallo marca active=1 + applied=0 + applied_method='manual_pending' para que el banner aparezca. El loop de backoff vive en Fase 5.
+
+---
+
+## D-027 ✅ Activa — Fixtures HTTP sintéticos en Fase 4 (sin hardware)
+
+**Decisión:** los 5 fixtures en `tests/fixtures/tplink/` son sintéticos, basados en docs públicas de TP-Link Archer C24 v1.2, no en tráfico real grabado.
+
+**Why:** sin acceso al router físico no podemos correr `nock.recorder`. Mantener el shape esperado permite cubrir la lógica del adapter; cuando el cliente compre el hardware se reemplazan con grabaciones reales en una task follow-up de Fase 4.
+
+**Impacto:** los tests pasan con los fixtures sintéticos pero NO validan que la firma HTTP real del Archer C24 v1.2 coincida. La impresión `f4-fixtures-need-real-grab` queda como deuda explícita hasta la compra.
+
+---
+
+## D-028 ✅ Activa — Variant detection limitada a Archer C24 v1.2 en Fase 4
+
+**Decisión:** el `TPLinkArcherAdapter` sólo reconoce la variant `archer-c24-v1.2`. Cualquier otra cae a `UnsupportedVariantError`.
+
+**Why:** el cliente sólo va a comprar el C24/A6 v3 (C24 v1.2 firmware). Soportar otros modelos es over-engineering para v1.
+
+**Impacto:** si el router que llega no matchea el regex `/TP-LINK\s+Archer\s+C24\s+V1\.2/i`, la app rechaza el login y muestra el error. Operador puede ajustar el regex en la task de grabación de fixtures reales.
+
+---
+
+## D-029 ✅ Activa — RouterService.applyPasswordNow es single-attempt (Fase 5 hace el loop)
+
+**Decisión:** `RouterService.applyPasswordNow` hace **un** intento. Si falla, marca la password como `applied=0 + applied_method='manual_pending'` y retorna failure.
+
+**Why:** el backoff exponencial 1m/5m/15m × 3 vive en el `SchedulerService` de Fase 5. Mantener `RouterService` simple permite que el scheduler controle la política de retry y que `admin.rotatePasswordNow` (botón manual) tenga el mismo comportamiento.
+
+**Impacto:** si Fase 5 se demora, el operador debe ir al banner manual cada vez que falla la rotación.
+
+---
+
+## D-030 ✅ Activa — Tests con nock requieren `// @vitest-environment node` (Fase 4 Task 7)
+
+**Decisión:** los archivos de test que usan `nock` para interceptar tráfico HTTP de axios deben declarar `// @vitest-environment node` en la primera línea.
+
+**Why:** la config global de vitest usa `happy-dom`. En ese entorno, axios usa el adapter XHR del navegador, que bypassa el módulo `node:http` que `nock` instrumentaliza. Sin la directiva, nock no intercepta y los tests caen al network real (que `nock.disableNetConnect()` bloquea).
+
+**How to apply:** primer renglón del archivo de test, antes de los imports:
+```ts
+// @vitest-environment node
+import nock from 'nock';
+```
+
+**Impacto:** los tests de adapters HTTP (TPLinkArcherAdapter, futuros) se aíslan del entorno DOM. Tests de componentes React siguen en happy-dom (default).
+
+---
+
+## D-031 ✅ Activa — Composition root selecciona MockRouterAdapter cuando no hay host configurado (Fase 4 Task 21)
+
+**Decisión:** `src/main/index.ts` instancia `MockRouterAdapter` cuando:
+1. `process.env.WIFI_VOUCHER_USE_MOCK_ROUTER === '1'`, o
+2. `config.getAll().router.host === ''` (instalación nueva sin TP-Link configurado)
+
+En caso contrario instancia `TPLinkArcherAdapter`.
+
+**Why:** permite arrancar la app inmediatamente después de la instalación sin hardware. El admin configura el host desde RouterPanel, reinicia, y el TPLink adapter toma el relevo. Para tests y CI, basta con `WIFI_VOUCHER_USE_MOCK_ROUTER=1`.
+
+**Impacto:** una rotación con MockRouter siempre será exitosa (mode='success' default) — el operador puede confundir que "ya está aplicando al router" cuando en realidad es el mock. El banner del HomePanel deja claro el estado cuando hay pending.
+
 ---
 
 ## Excepciones registradas
 
-(Ninguna al cierre de Fase 3.)
+(Ninguna al cierre de Fase 4 parcial.)
