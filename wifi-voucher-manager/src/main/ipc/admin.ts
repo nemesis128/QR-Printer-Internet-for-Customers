@@ -3,13 +3,7 @@ import { z } from 'zod';
 
 import type { AuditLogRepository } from '../db/repositories/AuditLogRepository.js';
 import type { AdminSession } from '../services/AdminSession.js';
-import type {
-  AppConfig,
-  AppConfigStore,
-  BusinessConfig,
-  RouterConfig,
-  ScheduleConfig,
-} from '../services/AppConfigStore.js';
+import type { AppConfig, AppConfigStore } from '../services/AppConfigStore.js';
 import type { LockoutTracker } from '../services/LockoutTracker.js';
 import { PinCrypto } from '../services/PinCrypto.js';
 import type { StatsService } from '../services/StatsService.js';
@@ -44,9 +38,18 @@ const UpdateConfigSchema = z.object({
   value: z.unknown(),
 });
 const SessionOnlySchema = z.object({ sessionToken: z.string().min(1) });
+const EventTypeSchema = z.enum([
+  'password_rotation',
+  'print',
+  'config_change',
+  'error',
+  'health_check',
+  'admin_login',
+  'admin_pin_change',
+]);
 const ListLogsSchema = z.object({
   sessionToken: z.string().min(1),
-  eventType: z.string().optional(),
+  eventType: EventTypeSchema.optional(),
   limit: z.number().int().positive().max(1000).optional(),
 });
 
@@ -71,21 +74,13 @@ export interface AdminHandlerDeps {
 }
 
 export interface AdminHandlers {
-  validatePin: (input: { pin: string }) => Promise<ValidatePinResult>;
-  changePin: (input: {
-    sessionToken: string;
-    currentPin: string;
-    newPin: string;
-  }) => Promise<ChangePinResult>;
-  getConfig: (input: { sessionToken: string }) => Promise<AppConfig | null>;
-  updateConfig: (input: {
-    sessionToken: string;
-    section: 'business' | 'schedule' | 'router';
-    value: unknown;
-  }) => Promise<UpdateConfigResult>;
-  getStats: (input: { sessionToken: string }) => Promise<unknown>;
-  listLogs: (input: { sessionToken: string; eventType?: string; limit?: number }) => Promise<unknown>;
-  rotatePasswordNow: (input: { sessionToken: string }) => Promise<{ ok: boolean; message?: string }>;
+  validatePin: (input: unknown) => Promise<ValidatePinResult>;
+  changePin: (input: unknown) => Promise<ChangePinResult>;
+  getConfig: (input: unknown) => Promise<AppConfig | null>;
+  updateConfig: (input: unknown) => Promise<UpdateConfigResult>;
+  getStats: (input: unknown) => Promise<unknown>;
+  listLogs: (input: unknown) => Promise<unknown>;
+  rotatePasswordNow: (input: unknown) => Promise<{ ok: boolean; message?: string }>;
 }
 
 export function createAdminHandlers(deps: AdminHandlerDeps): AdminHandlers {
@@ -130,10 +125,10 @@ export function createAdminHandlers(deps: AdminHandlerDeps): AdminHandlers {
       return { ok: true };
     },
 
-    async getConfig(raw) {
+    getConfig(raw) {
       const { sessionToken } = SessionOnlySchema.parse(raw);
-      if (!deps.session.validate(sessionToken)) return null;
-      return deps.config.getAll();
+      if (!deps.session.validate(sessionToken)) return Promise.resolve(null);
+      return Promise.resolve(deps.config.getAll());
     },
 
     async updateConfig(raw) {
@@ -143,11 +138,11 @@ export function createAdminHandlers(deps: AdminHandlerDeps): AdminHandlers {
       }
       try {
         if (input.section === 'business') {
-          deps.config.updateBusiness(BusinessSchema.parse(input.value) as BusinessConfig);
+          deps.config.updateBusiness(BusinessSchema.parse(input.value));
         } else if (input.section === 'schedule') {
-          deps.config.updateSchedule(ScheduleSchema.parse(input.value) as ScheduleConfig);
+          deps.config.updateSchedule(ScheduleSchema.parse(input.value));
         } else {
-          deps.config.updateRouter(RouterSchema.parse(input.value) as RouterConfig);
+          deps.config.updateRouter(RouterSchema.parse(input.value));
         }
         await deps.audit.insert({
           event_type: 'config_change',
@@ -177,7 +172,7 @@ export function createAdminHandlers(deps: AdminHandlerDeps): AdminHandlers {
       if (!deps.session.validate(input.sessionToken)) return [];
       return deps.audit.list({
         limit: input.limit ?? 200,
-        ...(input.eventType ? { eventType: input.eventType as never } : {}),
+        ...(input.eventType ? { eventType: input.eventType } : {}),
       });
     },
 
