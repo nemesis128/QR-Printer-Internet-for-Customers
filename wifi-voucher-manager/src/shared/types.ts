@@ -84,5 +84,96 @@ export interface PrinterAPI {
 export interface IpcAPI {
   waiter: WaiterAPI;
   printer: PrinterAPI;
-  // admin / router / stats land in later phases
+  admin: AdminAPI;
+}
+
+// ─── Admin (Fase 3) ─────────────────────────────────────────────────────────
+
+export interface BusinessConfigDTO {
+  name: string;
+  footerMessage: string;
+  logoPath: string | null;
+}
+
+export interface ScheduleConfigDTO {
+  hour: number;
+  minute: number;
+  timezone: string;
+}
+
+export interface RouterConfigDTO {
+  host: string;
+  user: string;
+  model: string;
+  ssidGuest: string;
+}
+
+export interface AdminConfigDTO {
+  pinIsDefault: boolean;
+}
+
+export interface AppConfigDTO {
+  business: BusinessConfigDTO;
+  schedule: ScheduleConfigDTO;
+  router: RouterConfigDTO;
+  admin: AdminConfigDTO;
+}
+
+export type ValidatePinResultDTO =
+  | { ok: true; sessionToken: string; pinIsDefault: boolean }
+  | { ok: false; code: 'INVALID_PIN' | 'LOCKED'; remainingMs?: number };
+
+export type ChangePinResultDTO =
+  | { ok: true }
+  | { ok: false; code: 'INVALID_CURRENT' | 'INVALID_NEW_PIN' | 'INVALID_SESSION'; message?: string };
+
+export type UpdateConfigResultDTO =
+  | { ok: true }
+  | { ok: false; code: 'INVALID_SESSION' | 'INVALID_VALUE'; message?: string };
+
+export interface StatsSummaryDTO {
+  totalPrints: number;
+  successfulPrints: number;
+  failedPrints: number;
+  totalRotations: number;
+  successfulRotations: number;
+}
+
+export interface DailyPrintPointDTO {
+  date: string;
+  count: number;
+}
+
+export interface StatsBundleDTO {
+  summary: StatsSummaryDTO;
+  daily: DailyPrintPointDTO[];
+}
+
+export interface AuditLogEntryDTO {
+  id: number;
+  event_type: string;
+  payload: string | null;
+  created_at: string;
+}
+
+export interface AdminAPI {
+  validatePin: (input: { pin: string }) => Promise<ValidatePinResultDTO>;
+  changePin: (input: {
+    sessionToken: string;
+    currentPin: string;
+    newPin: string;
+  }) => Promise<ChangePinResultDTO>;
+  getConfig: (input: { sessionToken: string }) => Promise<AppConfigDTO | null>;
+  updateConfig: (input: {
+    sessionToken: string;
+    section: 'business' | 'schedule' | 'router';
+    value: BusinessConfigDTO | ScheduleConfigDTO | RouterConfigDTO;
+  }) => Promise<UpdateConfigResultDTO>;
+  getStats: (input: { sessionToken: string }) => Promise<StatsBundleDTO | null>;
+  listLogs: (input: {
+    sessionToken: string;
+    eventType?: string;
+    limit?: number;
+  }) => Promise<AuditLogEntryDTO[]>;
+  rotatePasswordNow: (input: { sessionToken: string }) => Promise<{ ok: boolean; message?: string }>;
 }
