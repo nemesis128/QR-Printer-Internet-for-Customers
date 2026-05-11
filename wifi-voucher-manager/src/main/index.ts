@@ -3,22 +3,31 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import electron from 'electron';
+import Store from 'electron-store';
 
 import { BleDriver } from './adapters/printers/ble-driver.js';
 import { BluetoothDriver } from './adapters/printers/bluetooth-driver.js';
 import type { PrinterDriver } from './adapters/printers/driver-types.js';
 import { UsbDriver } from './adapters/printers/usb-driver.js';
 import { createConnection } from './db/connection.js';
+import { AuditLogRepository } from './db/repositories/AuditLogRepository.js';
 import { PasswordRepository } from './db/repositories/PasswordRepository.js';
 import { PrintJobRepository } from './db/repositories/PrintJobRepository.js';
 import { PrinterRepository } from './db/repositories/PrinterRepository.js';
 import { runMigrations } from './db/run-migrations.js';
+import { registerAdminHandlers } from './ipc/admin.js';
 import { registerPrinterHandlers } from './ipc/printer.js';
 import { registerWaiterHandlers } from './ipc/waiter.js';
+import { createCredentialStorage } from './security/CredentialStorage.js';
 import { DEV_CSP, PROD_CSP } from './security/csp.js';
+import { AdminSession } from './services/AdminSession.js';
+import { AppConfigStore } from './services/AppConfigStore.js';
+import { LockoutTracker } from './services/LockoutTracker.js';
 import { PasswordService } from './services/PasswordService.js';
+import { PinCrypto } from './services/PinCrypto.js';
 import { PrintQueue } from './services/PrintQueue.js';
 import { QRService } from './services/QRService.js';
+import { StatsService } from './services/StatsService.js';
 import { renderPrintBytes } from './services/render.js';
 
 const { app, BrowserWindow, session } = electron;
@@ -28,8 +37,6 @@ app.setName('wifi-voucher-manager');
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 const DEFAULT_SSID = 'Restaurante-Clientes';
-const DEFAULT_BUSINESS_NAME = 'Mi Restaurante';
-const DEFAULT_FOOTER = '¡Gracias por tu visita!';
 
 async function createWindow(): Promise<void> {
   const win = new BrowserWindow({
@@ -75,6 +82,26 @@ async function bootstrap(): Promise<void> {
   console.warn('[bootstrap] DB path:', dbPath);
   const db = createConnection({ filename: dbPath });
   await runMigrations(db);
+
+  const store = new Store<Record<string, unknown>>({ name: 'app-config' });
+  const config = new AppConfigStore({
+    get: (k, fallback) => (store.get(k) ?? fallback) as never,
+    set: (k, v) => store.set(k, v),
+  });
+
+  // Sembrar PIN '0000' si nunca se ha configurado
+  const cfgNow = config.getAll();
+  if (!cfgNow.admin.pinHash) {
+    const hash = await PinCrypto.hashPin('0000');
+    config.updateAdmin({ pinHash: hash, pinIsDefault: true });
+  }
+
+  const audit = new AuditLogRepository(db);
+  const stats = new StatsService(db, audit);
+  const session = new AdminSession({ ttlMs: 30 * 60_000 });
+  const lockout = new LockoutTracker({ maxAttempts: 3, windowMs: 5 * 60_000 });
+  const credentials = createCredentialStorage();
+  void credentials; // se usará en Fase 4 (router.password)
 
   const passwords = new PasswordRepository(db);
   const printers = new PrinterRepository(db);
@@ -130,11 +157,12 @@ async function bootstrap(): Promise<void> {
     qr,
     queue,
     defaultSsid: DEFAULT_SSID,
-    businessName: DEFAULT_BUSINESS_NAME,
-    footerMessage: DEFAULT_FOOTER,
+    config,
   });
 
   registerPrinterHandlers({ printers, jobs, queue, drivers });
+
+  registerAdminHandlers({ config, audit, stats, session, lockout });
 
   app.on('before-quit', () => {
     void db.destroy();

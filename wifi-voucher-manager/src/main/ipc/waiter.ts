@@ -3,6 +3,7 @@ import electron from 'electron';
 import type { PrintVoucherResult, SystemHealth } from '../../shared/types.js';
 import type { PasswordRepository } from '../db/repositories/PasswordRepository.js';
 import type { PrinterRepository } from '../db/repositories/PrinterRepository.js';
+import type { AppConfigStore } from '../services/AppConfigStore.js';
 import type { PrintQueue } from '../services/PrintQueue.js';
 import type { QRService } from '../services/QRService.js';
 
@@ -14,8 +15,7 @@ export interface WaiterHandlerDeps {
   qr: QRService;
   queue: PrintQueue;
   defaultSsid: string;
-  businessName: string;
-  footerMessage: string;
+  config: AppConfigStore;
 }
 
 export function registerWaiterHandlers(deps: WaiterHandlerDeps): void {
@@ -57,6 +57,7 @@ export function registerWaiterHandlers(deps: WaiterHandlerDeps): void {
       };
     }
     try {
+      const cfg = deps.config.getAll();
       const generated = await deps.qr.generate({
         ssid: active.ssid,
         password: active.password,
@@ -65,10 +66,10 @@ export function registerWaiterHandlers(deps: WaiterHandlerDeps): void {
         printer_id: activePrinter.id,
         use_case: 'voucher',
         payload: {
-          business_name: deps.businessName,
+          business_name: cfg.business.name,
           ssid: active.ssid,
           qrPng: generated.pngBuffer.toString('base64'),
-          footer_message: deps.footerMessage,
+          footer_message: cfg.business.footerMessage,
           triggered_at: new Date().toISOString(),
         },
         triggered_by: 'waiter',
