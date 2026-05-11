@@ -1,0 +1,10 @@
+{
+  "request": {
+    "method": "GET",
+    "path": "/cgi-bin/luci/;stok=ABCDEF/admin/wireless_2g_guest/get"
+  },
+  "response": {
+    "status": 200,
+    "body": "{\"stat\":\"ok\",\"data\":{\"ssid\":\"Restaurante-Clientes\",\"enabled\":true}}"
+  }
+}

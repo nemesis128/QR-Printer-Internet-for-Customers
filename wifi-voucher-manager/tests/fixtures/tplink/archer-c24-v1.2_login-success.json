@@ -1,0 +1,14 @@
+{
+  "request": {
+    "method": "POST",
+    "path": "/cgi-bin/luci",
+    "body": "username=admin&password=__PWD__"
+  },
+  "response": {
+    "status": 200,
+    "headers": {
+      "Set-Cookie": "sysauth=ABCDEF123456; path=/cgi-bin/luci"
+    },
+    "body": "{\"stat\":\"ok\",\"sessionKey\":\"ABCDEF123456\"}"
+  }
+}
