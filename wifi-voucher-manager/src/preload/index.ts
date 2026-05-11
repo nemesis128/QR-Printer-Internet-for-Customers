@@ -52,6 +52,8 @@ const api: IpcAPI = {
     getCurrentSSID: (): Promise<string> => ipcRenderer.invoke('waiter:get-current-ssid'),
     getSystemHealth: (): Promise<SystemHealth> => ipcRenderer.invoke('waiter:get-system-health'),
     printVoucher: (): Promise<PrintVoucherResult> => ipcRenderer.invoke('waiter:print-voucher'),
+    listPendingManualApply: (): Promise<PendingManualApplyDTO[]> =>
+      ipcRenderer.invoke('waiter:list-pending-manual-apply'),
   },
   printer: {
     discover: (): Promise<DiscoveredPrinter[]> => ipcRenderer.invoke('printer:discover'),

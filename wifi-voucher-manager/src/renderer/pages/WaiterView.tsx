@@ -1,5 +1,6 @@
 import { useEffect, useState, type FC } from 'react';
 
+import type { PendingManualApplyDTO } from '../../shared/types.js';
 import { Banner } from '../components/Banner.js';
 import { HealthIndicator, type HealthStatus } from '../components/HealthIndicator.js';
 import { PrintButton } from '../components/PrintButton.js';
@@ -28,12 +29,17 @@ export const WaiterView: FC<WaiterViewProps> = ({ onOpenAdmin }) => {
   const { health, isLoading, error, refetch } = useSystemHealth();
   const { status, lastError, startPrint, retryLastJob, clear } = usePrintStore();
   const [ssid, setSsid] = useState('—');
+  const [pending, setPending] = useState<PendingManualApplyDTO[]>([]);
 
   useEffect(() => {
     void window.api.waiter.getCurrentSSID().then(setSsid).catch(() => {
       setSsid('—');
     });
   }, [health]);
+
+  useEffect(() => {
+    void window.api.waiter.listPendingManualApply().then(setPending);
+  }, []);
 
   // Auto-clear printed banner después de 4s
   useEffect(() => {
@@ -59,6 +65,20 @@ export const WaiterView: FC<WaiterViewProps> = ({ onOpenAdmin }) => {
 
   return (
     <div className="relative flex min-h-screen flex-col items-center justify-center gap-8 bg-background">
+      {pending.length > 0 && pending[0] ? (
+        <div className="absolute left-1/2 top-32 -translate-x-1/2 w-[600px] border-l-[3px] border-error bg-surface p-4 shadow-card">
+          <p className="mb-2 text-sm text-textPrimary">Aplicación manual de contraseña pendiente:</p>
+          <p className="mb-3 font-mono text-2xl text-textPrimary">{pending[0].password}</p>
+          <button
+            type="button"
+            onClick={() => onOpenAdmin?.()}
+            className="rounded-md bg-accent px-3 py-1 text-sm text-accentForeground hover:bg-accentHover"
+          >
+            Ir a Administración para confirmar
+          </button>
+        </div>
+      ) : null}
+
       {status === 'print-failed' && lastError ? (
         <div className="absolute left-1/2 top-12 -translate-x-1/2 w-[480px]">
           <Banner variant="error" message={lastError}>

@@ -6,6 +6,7 @@ import type { PrinterRepository } from '../db/repositories/PrinterRepository.js'
 import type { AppConfigStore } from '../services/AppConfigStore.js';
 import type { PrintQueue } from '../services/PrintQueue.js';
 import type { QRService } from '../services/QRService.js';
+import type { RouterService } from '../services/RouterService.js';
 
 const { ipcMain } = electron;
 
@@ -16,6 +17,7 @@ export interface WaiterHandlerDeps {
   queue: PrintQueue;
   defaultSsid: string;
   config: AppConfigStore;
+  routerService: RouterService;
 }
 
 export function registerWaiterHandlers(deps: WaiterHandlerDeps): void {
@@ -83,10 +85,13 @@ export function registerWaiterHandlers(deps: WaiterHandlerDeps): void {
       };
     }
   });
+
+  ipcMain.handle('waiter:list-pending-manual-apply', () => deps.routerService.listPendingManualApply());
 }
 
 export function unregisterWaiterHandlers(): void {
   ipcMain.removeHandler('waiter:get-current-ssid');
   ipcMain.removeHandler('waiter:get-system-health');
   ipcMain.removeHandler('waiter:print-voucher');
+  ipcMain.removeHandler('waiter:list-pending-manual-apply');
 }

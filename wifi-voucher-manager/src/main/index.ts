@@ -172,6 +172,7 @@ async function bootstrap(): Promise<void> {
     queue,
     defaultSsid: DEFAULT_SSID,
     config,
+    routerService,
   });
 
   registerPrinterHandlers({ printers, jobs, queue, drivers });

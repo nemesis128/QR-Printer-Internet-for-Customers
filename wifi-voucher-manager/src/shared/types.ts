@@ -65,6 +65,7 @@ export interface WaiterAPI {
   getCurrentSSID: () => Promise<string>;
   getSystemHealth: () => Promise<SystemHealth>;
   printVoucher: () => Promise<PrintVoucherResult>;
+  listPendingManualApply: () => Promise<PendingManualApplyDTO[]>;
 }
 
 export interface PrinterAPI {

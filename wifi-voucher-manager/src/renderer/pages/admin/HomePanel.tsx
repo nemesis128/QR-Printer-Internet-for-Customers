@@ -1,18 +1,25 @@
 // src/renderer/pages/admin/HomePanel.tsx
 import { useEffect, useState, type FC } from 'react';
 
+import { ManualFallbackBanner } from '../../components/ManualFallbackBanner.js';
 import { useSystemHealth } from '../../hooks/useSystemHealth.js';
 import { useAdminStore } from '../../store/adminStore.js';
+import { useRouterStore } from '../../store/routerStore.js';
 
 export const HomePanel: FC = () => {
   const { health, isLoading, refetch } = useSystemHealth();
   const sessionToken = useAdminStore((s) => s.sessionToken);
+  const { pending, reloadPending } = useRouterStore();
   const [rotating, setRotating] = useState(false);
   const [feedback, setFeedback] = useState<string | null>(null);
 
   useEffect(() => {
     void refetch();
   }, [refetch]);
+
+  useEffect(() => {
+    if (sessionToken) void reloadPending(sessionToken);
+  }, [sessionToken, reloadPending]);
 
   const triggerRotation = async (): Promise<void> => {
     if (!sessionToken) return;
@@ -29,6 +36,14 @@ export const HomePanel: FC = () => {
   return (
     <div className="flex flex-col gap-6">
       <h1 className="text-2xl font-semibold text-textPrimary">Inicio</h1>
+
+      {pending.length > 0 && pending[0] && sessionToken ? (
+        <ManualFallbackBanner
+          pending={pending[0]}
+          sessionToken={sessionToken}
+          onConfirmed={() => void reloadPending(sessionToken)}
+        />
+      ) : null}
 
       <section className="rounded-lg border border-border bg-surface p-6 shadow-card">
         <h2 className="mb-4 text-lg font-medium text-textPrimary">Salud del sistema</h2>

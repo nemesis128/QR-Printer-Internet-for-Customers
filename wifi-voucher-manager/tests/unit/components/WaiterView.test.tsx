@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react';
+import { render, screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { WaiterView } from '../../../src/renderer/pages/WaiterView.js';
@@ -9,6 +9,7 @@ interface MockApi {
     getCurrentSSID: () => Promise<string>;
     getSystemHealth: () => Promise<unknown>;
     printVoucher: () => Promise<unknown>;
+    listPendingManualApply: () => Promise<unknown[]>;
   };
   printer: {
     getJobStatus: () => Promise<unknown>;
@@ -48,6 +49,7 @@ describe('WaiterView (Fase 2)', () => {
           lastRotationStatus: 'success',
         }),
         printVoucher: vi.fn(),
+        listPendingManualApply: vi.fn(async () => []),
       },
       printer: {
         getJobStatus: vi.fn(),
@@ -74,6 +76,7 @@ describe('WaiterView (Fase 2)', () => {
           lastRotationStatus: 'success',
         }),
         printVoucher: vi.fn(),
+        listPendingManualApply: vi.fn(async () => []),
       },
       printer: {
         getJobStatus: vi.fn(),
@@ -100,6 +103,7 @@ describe('WaiterView (Fase 2)', () => {
           lastRotationStatus: null,
         }),
         printVoucher: vi.fn(),
+        listPendingManualApply: vi.fn(async () => []),
       },
       printer: {
         getJobStatus: vi.fn(),
@@ -109,5 +113,32 @@ describe('WaiterView (Fase 2)', () => {
 
     render(<WaiterView />);
     expect(await screen.findByText(/Sin contraseña configurada/)).toBeInTheDocument();
+  });
+
+  it('renderiza el banner cuando hay pending', async () => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (window as any).api = {
+      waiter: {
+        getCurrentSSID: vi.fn().mockResolvedValue('—'),
+        getSystemHealth: vi.fn().mockResolvedValue({
+          printerOnline: true,
+          routerReachable: false,
+          passwordValid: true,
+          schedulerRunning: false,
+          lastRotation: null,
+          lastRotationStatus: null,
+        }),
+        printVoucher: vi.fn(),
+        listPendingManualApply: vi.fn(async () => [
+          { id: 1, password: 'NEWPWD', ssid: 'guest', created_at: '2026-05-11T00:00:00Z' },
+        ]),
+      },
+      printer: {
+        getJobStatus: vi.fn(),
+        retryJob: vi.fn(),
+      },
+    };
+    render(<WaiterView />);
+    await waitFor(() => expect(screen.getByText('NEWPWD')).toBeInTheDocument());
   });
 });
