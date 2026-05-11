@@ -85,6 +85,7 @@ export interface IpcAPI {
   waiter: WaiterAPI;
   printer: PrinterAPI;
   admin: AdminAPI;
+  router: RouterAPI;
 }
 
 // ─── Admin (Fase 3) ─────────────────────────────────────────────────────────
@@ -176,4 +177,54 @@ export interface AdminAPI {
     limit?: number;
   }) => Promise<AuditLogEntryDTO[]>;
   rotatePasswordNow: (input: { sessionToken: string }) => Promise<{ ok: boolean; message?: string }>;
+}
+
+// ─── Router (Fase 4) ────────────────────────────────────────────────────────
+
+export type RouterStepDTO = 'reach' | 'login' | 'read-ssid' | 'set-password' | 'set-enabled' | 'logout';
+
+export interface RouterPingResultDTO {
+  reachable: boolean;
+  latencyMs: number;
+  errorMessage?: string;
+}
+
+export interface RouterStepResultDTO {
+  step: RouterStepDTO;
+  ok: boolean;
+  latencyMs: number;
+  detail?: string;
+}
+
+export interface RouterTestResultDTO {
+  ok: boolean;
+  steps: RouterStepResultDTO[];
+  ssidGuest?: string;
+  errorMessage?: string;
+}
+
+export interface RouterApplyResultDTO {
+  ok: boolean;
+  routerResponse: string | null;
+  errorMessage?: string;
+  failedAt?: RouterStepDTO;
+}
+
+export interface PendingManualApplyDTO {
+  id: number;
+  password: string;
+  ssid: string;
+  created_at: string;
+}
+
+export interface RouterAPI {
+  pingRouter: (input: { sessionToken: string; host: string }) => Promise<RouterPingResultDTO>;
+  testConnection: (input: { sessionToken: string }) => Promise<RouterTestResultDTO>;
+  applyPasswordNow: (input: { sessionToken: string }) => Promise<RouterApplyResultDTO>;
+  markAppliedManually: (input: {
+    sessionToken: string;
+    passwordId: number;
+    confirmedPassword: string;
+  }) => Promise<{ ok: boolean; message?: string }>;
+  listPendingManualApply: (input: { sessionToken: string }) => Promise<PendingManualApplyDTO[]>;
 }
