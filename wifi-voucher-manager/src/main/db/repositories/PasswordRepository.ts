@@ -8,9 +8,11 @@ export interface PasswordRow {
   active: 0 | 1;
   rotated_by: 'auto' | 'manual' | 'seed';
   router_response: string | null;
+  applied: 0 | 1;
+  applied_method: 'auto' | 'manual' | 'manual_pending' | null;
 }
 
-export type PasswordInsertInput = Omit<PasswordRow, 'id' | 'created_at'>;
+export type PasswordInsertInput = Omit<PasswordRow, 'id' | 'created_at' | 'applied' | 'applied_method'>;
 
 export class PasswordRepository {
   constructor(private readonly db: Knex) {}
@@ -42,5 +44,29 @@ export class PasswordRepository {
       .orderBy('created_at', 'desc')
       .orderBy('id', 'desc')
       .limit(limit);
+  }
+
+  async markPendingManualApply(id: number): Promise<void> {
+    await this.db('passwords')
+      .where({ id })
+      .update({ applied: 0, applied_method: 'manual_pending' });
+  }
+
+  async markAppliedManually(id: number): Promise<void> {
+    await this.db('passwords')
+      .where({ id })
+      .update({ applied: 1, applied_method: 'manual' });
+  }
+
+  async markAppliedAutomatically(id: number, routerResponse: string | null): Promise<void> {
+    await this.db('passwords')
+      .where({ id })
+      .update({ applied: 1, applied_method: 'auto', router_response: routerResponse });
+  }
+
+  async listPendingManualApply(): Promise<PasswordRow[]> {
+    return this.db<PasswordRow>('passwords')
+      .where({ applied: 0, applied_method: 'manual_pending' })
+      .orderBy('id', 'desc');
   }
 }

@@ -85,3 +85,73 @@ describe('PasswordRepository', () => {
     expect(ids[0]).toBeGreaterThan(ids[2]);
   });
 });
+
+describe('PasswordRepository — applied lifecycle (Fase 4)', () => {
+  let db: ReturnType<typeof createConnection>;
+  let repo: PasswordRepository;
+
+  beforeEach(async () => {
+    db = createConnection({ filename: ':memory:' });
+    await runMigrations(db);
+    repo = new PasswordRepository(db);
+  });
+
+  afterEach(async () => {
+    await db.destroy();
+  });
+
+  it('insert default applied=1 si no se especifica', async () => {
+    const row = await repo.insert({
+      password: 'PW123ABC',
+      ssid: 'guest',
+      active: 1,
+      rotated_by: 'auto',
+      router_response: null,
+    });
+    expect(row.applied).toBe(1);
+    expect(row.applied_method).toBeNull();
+  });
+
+  it('markPendingManualApply marca applied=0 y applied_method', async () => {
+    const row = await repo.insert({
+      password: 'PW123ABC',
+      ssid: 'guest',
+      active: 1,
+      rotated_by: 'auto',
+      router_response: null,
+    });
+    await repo.markPendingManualApply(row.id);
+    const updated = await repo.getActive();
+    expect(updated?.applied).toBe(0);
+    expect(updated?.applied_method).toBe('manual_pending');
+  });
+
+  it('markAppliedManually marca applied=1 con applied_method="manual"', async () => {
+    const row = await repo.insert({
+      password: 'PW123ABC',
+      ssid: 'guest',
+      active: 1,
+      rotated_by: 'auto',
+      router_response: null,
+    });
+    await repo.markPendingManualApply(row.id);
+    await repo.markAppliedManually(row.id);
+    const updated = await repo.getActive();
+    expect(updated?.applied).toBe(1);
+    expect(updated?.applied_method).toBe('manual');
+  });
+
+  it('listPendingManualApply devuelve sólo rows con applied=0 AND applied_method="manual_pending"', async () => {
+    const ok = await repo.insert({
+      password: 'A', ssid: 'guest', active: 0, rotated_by: 'auto', router_response: null,
+    });
+    const pending = await repo.insert({
+      password: 'B', ssid: 'guest', active: 1, rotated_by: 'auto', router_response: null,
+    });
+    await repo.markPendingManualApply(pending.id);
+    const list = await repo.listPendingManualApply();
+    expect(list).toHaveLength(1);
+    expect(list[0]!.id).toBe(pending.id);
+    expect(ok).toBeDefined();
+  });
+});
