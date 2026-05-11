@@ -4,6 +4,7 @@ import { createConnection } from '../../src/main/db/connection.js';
 import { AuditLogRepository } from '../../src/main/db/repositories/AuditLogRepository.js';
 import { runMigrations } from '../../src/main/db/run-migrations.js';
 import { createAdminHandlers } from '../../src/main/ipc/admin.js';
+import { MockCredentialStorage } from '../../src/main/security/CredentialStorage.js';
 import { AdminSession } from '../../src/main/services/AdminSession.js';
 import { AppConfigStore, DEFAULT_APP_CONFIG } from '../../src/main/services/AppConfigStore.js';
 import { LockoutTracker } from '../../src/main/services/LockoutTracker.js';
@@ -27,7 +28,8 @@ async function buildHandlers() {
   // sembrar pin default
   const pinHash = await PinCrypto.hashPin('0000');
   config.updateAdmin({ pinHash, pinIsDefault: true });
-  const handlers = createAdminHandlers({ config, audit, stats, session, lockout });
+  const credentials = new MockCredentialStorage();
+  const handlers = createAdminHandlers({ config, audit, stats, session, lockout, credentials });
   return { handlers, db, config };
 }
 
@@ -99,5 +101,12 @@ describe('admin IPC handlers', () => {
       value: DEFAULT_APP_CONFIG.business,
     });
     expect(r.ok).toBe(false);
+  });
+
+  it('setRouterPassword guarda en CredentialStorage', async () => {
+    const r = await ctx.handlers.validatePin({ pin: '0000' });
+    if (!r.ok) throw new Error('precondition');
+    const res = await ctx.handlers.setRouterPassword({ sessionToken: r.sessionToken, password: 'AdminPwd' });
+    expect(res.ok).toBe(true);
   });
 });

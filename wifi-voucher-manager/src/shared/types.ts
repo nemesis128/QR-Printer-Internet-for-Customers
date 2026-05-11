@@ -177,6 +177,7 @@ export interface AdminAPI {
     limit?: number;
   }) => Promise<AuditLogEntryDTO[]>;
   rotatePasswordNow: (input: { sessionToken: string }) => Promise<{ ok: boolean; message?: string }>;
+  setRouterPassword: (input: { sessionToken: string; password: string }) => Promise<{ ok: boolean; message?: string }>;
 }
 
 // ─── Router (Fase 4) ────────────────────────────────────────────────────────

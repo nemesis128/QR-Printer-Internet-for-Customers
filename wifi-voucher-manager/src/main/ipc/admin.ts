@@ -2,6 +2,7 @@ import electron from 'electron';
 import { z } from 'zod';
 
 import type { AuditLogRepository } from '../db/repositories/AuditLogRepository.js';
+import type { CredentialStorage } from '../security/CredentialStorage.js';
 import type { AdminSession } from '../services/AdminSession.js';
 import type { AppConfig, AppConfigStore } from '../services/AppConfigStore.js';
 import type { LockoutTracker } from '../services/LockoutTracker.js';
@@ -71,6 +72,7 @@ export interface AdminHandlerDeps {
   stats: StatsService;
   session: AdminSession;
   lockout: LockoutTracker;
+  credentials: CredentialStorage;
 }
 
 export interface AdminHandlers {
@@ -81,6 +83,7 @@ export interface AdminHandlers {
   getStats: (input: unknown) => Promise<unknown>;
   listLogs: (input: unknown) => Promise<unknown>;
   rotatePasswordNow: (input: unknown) => Promise<{ ok: boolean; message?: string }>;
+  setRouterPassword: (input: unknown) => Promise<{ ok: boolean; message?: string }>;
 }
 
 export function createAdminHandlers(deps: AdminHandlerDeps): AdminHandlers {
@@ -188,6 +191,17 @@ export function createAdminHandlers(deps: AdminHandlerDeps): AdminHandlers {
       });
       return { ok: false, message: 'Rotación automática pendiente de Fase 5' };
     },
+
+    async setRouterPassword(raw) {
+      const Schema = z.object({ sessionToken: z.string().min(1), password: z.string().min(1).max(128) });
+      const input = Schema.parse(raw);
+      if (!deps.session.validate(input.sessionToken)) {
+        return { ok: false, message: 'Sesión inválida' };
+      }
+      await deps.credentials.set('router.password', input.password);
+      await deps.audit.insert({ event_type: 'config_change', payload: { section: 'router-password' } });
+      return { ok: true };
+    },
   };
 }
 
@@ -200,6 +214,7 @@ export function registerAdminHandlers(deps: AdminHandlerDeps): void {
   ipcMain.handle('admin:get-stats', (_e, r) => h.getStats(r));
   ipcMain.handle('admin:list-logs', (_e, r) => h.listLogs(r));
   ipcMain.handle('admin:rotate-password-now', (_e, r) => h.rotatePasswordNow(r));
+  ipcMain.handle('admin:set-router-password', (_e, r) => h.setRouterPassword(r));
 }
 
 export function unregisterAdminHandlers(): void {
@@ -210,4 +225,5 @@ export function unregisterAdminHandlers(): void {
   ipcMain.removeHandler('admin:get-stats');
   ipcMain.removeHandler('admin:list-logs');
   ipcMain.removeHandler('admin:rotate-password-now');
+  ipcMain.removeHandler('admin:set-router-password');
 }

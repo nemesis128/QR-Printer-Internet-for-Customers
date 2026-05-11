@@ -16,6 +16,8 @@ export const RouterPanel: FC = () => {
   const [ssidGuest, setSsidGuest] = useState('');
   const [feedback, setFeedback] = useState<string | null>(null);
   const [pingResult, setPingResult] = useState<{ reachable: boolean; latencyMs: number; errorMessage?: string } | null>(null);
+  const [newRouterPassword, setNewRouterPassword] = useState('');
+  const [pwdFeedback, setPwdFeedback] = useState<string | null>(null);
 
   useEffect(() => {
     if (config) {
@@ -42,6 +44,13 @@ export const RouterPanel: FC = () => {
     setPingResult(null);
     const r = await window.api.router.pingRouter({ sessionToken, host });
     setPingResult(r);
+  };
+
+  const saveRouterPassword = async (): Promise<void> => {
+    if (!sessionToken || !newRouterPassword) return;
+    const r = await window.api.admin.setRouterPassword({ sessionToken, password: newRouterPassword });
+    setPwdFeedback(r.ok ? 'Contraseña guardada.' : (r.message ?? 'Error'));
+    if (r.ok) setNewRouterPassword('');
   };
 
   if (!config) return <p className="text-sm text-textSecondary">Cargando…</p>;
@@ -74,7 +83,16 @@ export const RouterPanel: FC = () => {
         <p className="text-xs text-textSecondary">
           La contraseña del router se almacena cifrada (safeStorage). Cambiarla aquí no muestra la actual; deja el campo vacío para conservar la guardada.
         </p>
-        <PasswordInput value="" onChange={() => {}} label="Nueva contraseña router (opcional)" />
+        <PasswordInput value={newRouterPassword} onChange={setNewRouterPassword} label="Nueva contraseña router (opcional)" />
+        <button
+          type="button"
+          disabled={!newRouterPassword}
+          onClick={() => void saveRouterPassword()}
+          className="self-start rounded-md bg-accent px-4 py-2 text-sm text-accentForeground hover:bg-accentHover disabled:opacity-50"
+        >
+          Guardar contraseña router
+        </button>
+        {pwdFeedback ? <p className="text-sm text-textSecondary">{pwdFeedback}</p> : null}
         <label className="flex flex-col gap-1 text-sm text-textSecondary">
           Modelo
           <input

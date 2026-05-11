@@ -33,6 +33,8 @@ const adminApi: AdminAPI = {
   listLogs: (input): Promise<AuditLogEntryDTO[]> => ipcRenderer.invoke('admin:list-logs', input),
   rotatePasswordNow: (input): Promise<{ ok: boolean; message?: string }> =>
     ipcRenderer.invoke('admin:rotate-password-now', input),
+  setRouterPassword: (input): Promise<{ ok: boolean; message?: string }> =>
+    ipcRenderer.invoke('admin:set-router-password', input),
 };
 
 const routerApi: RouterAPI = {

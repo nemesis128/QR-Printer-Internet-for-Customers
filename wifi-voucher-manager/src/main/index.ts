@@ -101,7 +101,6 @@ async function bootstrap(): Promise<void> {
   const session = new AdminSession({ ttlMs: 30 * 60_000 });
   const lockout = new LockoutTracker({ maxAttempts: 3, windowMs: 5 * 60_000 });
   const credentials = createCredentialStorage();
-  void credentials; // se usará en Fase 4 (router.password)
 
   const passwords = new PasswordRepository(db);
   const printers = new PrinterRepository(db);
@@ -162,7 +161,7 @@ async function bootstrap(): Promise<void> {
 
   registerPrinterHandlers({ printers, jobs, queue, drivers });
 
-  registerAdminHandlers({ config, audit, stats, session, lockout });
+  registerAdminHandlers({ config, audit, stats, session, lockout, credentials });
 
   app.on('before-quit', () => {
     void db.destroy();
