@@ -1,6 +1,10 @@
 import { contextBridge, ipcRenderer } from 'electron';
 
 import type {
+  AdminAPI,
+  AppConfigDTO,
+  AuditLogEntryDTO,
+  ChangePinResultDTO,
   DiscoveredPrinter,
   IpcAPI,
   JobStatusSnapshot,
@@ -9,8 +13,28 @@ import type {
   PrinterRecord,
   PrinterTestResult,
   RecentJobSummary,
+  StatsBundleDTO,
   SystemHealth,
+  UpdateConfigResultDTO,
+  ValidatePinResultDTO,
 } from '../shared/types.js';
+
+const adminApi: AdminAPI = {
+  validatePin: (input): Promise<ValidatePinResultDTO> =>
+    ipcRenderer.invoke('admin:validate-pin', input),
+  changePin: (input): Promise<ChangePinResultDTO> =>
+    ipcRenderer.invoke('admin:change-pin', input),
+  getConfig: (input): Promise<AppConfigDTO | null> =>
+    ipcRenderer.invoke('admin:get-config', input),
+  updateConfig: (input): Promise<UpdateConfigResultDTO> =>
+    ipcRenderer.invoke('admin:update-config', input),
+  getStats: (input): Promise<StatsBundleDTO | null> =>
+    ipcRenderer.invoke('admin:get-stats', input),
+  listLogs: (input): Promise<AuditLogEntryDTO[]> =>
+    ipcRenderer.invoke('admin:list-logs', input),
+  rotatePasswordNow: (input): Promise<{ ok: boolean; message?: string }> =>
+    ipcRenderer.invoke('admin:rotate-password-now', input),
+};
 
 const api: IpcAPI = {
   waiter: {
@@ -33,6 +57,7 @@ const api: IpcAPI = {
     listRecentJobs: (limit?: number): Promise<RecentJobSummary[]> =>
       ipcRenderer.invoke('printer:list-recent-jobs', { limit }),
   },
+  admin: adminApi,
 };
 
 contextBridge.exposeInMainWorld('api', api);
