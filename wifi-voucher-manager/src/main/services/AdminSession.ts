@@ -22,7 +22,7 @@ export class AdminSession {
       this.tokens.delete(token);
       return false;
     }
-    this.tokens.set(token, Date.now() + this.opts.ttlMs); // refresh
+    this.tokens.set(token, Date.now() + this.opts.ttlMs);
     return true;
   }
 
