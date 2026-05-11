@@ -7,6 +7,10 @@ import { SettingsGearButton } from '../components/SettingsGearButton.js';
 import { useSystemHealth } from '../hooks/useSystemHealth.js';
 import { usePrintStore } from '../store/printStore.js';
 
+interface WaiterViewProps {
+  onOpenAdmin?: () => void;
+}
+
 function deriveHealth(
   loading: boolean,
   error: string | null,
@@ -20,10 +24,9 @@ function deriveHealth(
   return { status: 'success', label: 'Sistema listo' };
 }
 
-export const WaiterView: FC = () => {
+export const WaiterView: FC<WaiterViewProps> = ({ onOpenAdmin }) => {
   const { health, isLoading, error, refetch } = useSystemHealth();
   const { status, lastError, startPrint, retryLastJob, clear } = usePrintStore();
-  const [pinModalOpen, setPinModalOpen] = useState(false);
   const [ssid, setSsid] = useState('—');
 
   useEffect(() => {
@@ -94,20 +97,7 @@ export const WaiterView: FC = () => {
 
       <HealthIndicator status={derivedHealth.status} label={derivedHealth.label} />
 
-      <SettingsGearButton onClick={() => setPinModalOpen(true)} />
-
-      {pinModalOpen ? (
-        <div
-          role="dialog"
-          aria-modal="true"
-          className="fixed inset-0 z-modal flex items-center justify-center bg-textPrimary/55"
-          onClick={() => setPinModalOpen(false)}
-        >
-          <div className="rounded-lg bg-surface p-8 shadow-card">
-            <p className="text-base text-textPrimary">PIN admin — disponible en Fase 3.</p>
-          </div>
-        </div>
-      ) : null}
+      <SettingsGearButton onClick={() => onOpenAdmin?.()} />
     </div>
   );
 };

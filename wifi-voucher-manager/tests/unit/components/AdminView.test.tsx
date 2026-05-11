@@ -41,7 +41,9 @@ describe('AdminView gate', () => {
   it('muestra el shell tras login exitoso (pinIsDefault=false)', async () => {
     useAdminStore.setState({ sessionToken: 'tok', pinIsDefault: false });
     render(<AdminView onExit={vi.fn()} />);
-    await waitFor(() => expect(screen.getByText('Inicio')).toBeInTheDocument());
+    await waitFor(() =>
+      expect(screen.getAllByText('Inicio').length).toBeGreaterThan(0)
+    );
   });
 
   it('muestra ChangePinWizard cuando pinIsDefault=true', () => {
@@ -54,7 +56,7 @@ describe('AdminView gate', () => {
     useAdminStore.setState({ sessionToken: 'tok', pinIsDefault: false });
     const onExit = vi.fn();
     render(<AdminView onExit={onExit} />);
-    await waitFor(() => screen.getByText('Inicio'));
+    await waitFor(() => screen.getAllByText('Inicio'));
     fireEvent.click(screen.getByRole('button', { name: /cerrar sesión/i }));
     expect(onExit).toHaveBeenCalled();
   });
