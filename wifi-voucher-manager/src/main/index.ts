@@ -9,6 +9,9 @@ import { BleDriver } from './adapters/printers/ble-driver.js';
 import { BluetoothDriver } from './adapters/printers/bluetooth-driver.js';
 import type { PrinterDriver } from './adapters/printers/driver-types.js';
 import { UsbDriver } from './adapters/printers/usb-driver.js';
+import { MockRouterAdapter } from './adapters/routers/mock-router-adapter.js';
+import type { IRouterAdapter } from './adapters/routers/router-types.js';
+import { TPLinkArcherAdapter } from './adapters/routers/tplink-archer-adapter.js';
 import { createConnection } from './db/connection.js';
 import { AuditLogRepository } from './db/repositories/AuditLogRepository.js';
 import { PasswordRepository } from './db/repositories/PasswordRepository.js';
@@ -17,6 +20,7 @@ import { PrinterRepository } from './db/repositories/PrinterRepository.js';
 import { runMigrations } from './db/run-migrations.js';
 import { registerAdminHandlers } from './ipc/admin.js';
 import { registerPrinterHandlers } from './ipc/printer.js';
+import { registerRouterHandlers } from './ipc/router.js';
 import { registerWaiterHandlers } from './ipc/waiter.js';
 import { createCredentialStorage } from './security/CredentialStorage.js';
 import { DEV_CSP, PROD_CSP } from './security/csp.js';
@@ -27,6 +31,7 @@ import { PasswordService } from './services/PasswordService.js';
 import { PinCrypto } from './services/PinCrypto.js';
 import { PrintQueue } from './services/PrintQueue.js';
 import { QRService } from './services/QRService.js';
+import { RouterService } from './services/RouterService.js';
 import { StatsService } from './services/StatsService.js';
 import { renderPrintBytes } from './services/render.js';
 
@@ -150,6 +155,16 @@ async function bootstrap(): Promise<void> {
 
   queue.bootstrap();
 
+  const useMockRouter =
+    process.env.WIFI_VOUCHER_USE_MOCK_ROUTER === '1' ||
+    config.getAll().router.host === '';
+
+  const routerAdapter: IRouterAdapter = useMockRouter
+    ? new MockRouterAdapter({ mode: 'success', ssidGuest: config.getAll().router.ssidGuest || 'guest' })
+    : new TPLinkArcherAdapter();
+
+  const routerService = new RouterService({ adapter: routerAdapter, audit, passwords });
+
   registerWaiterHandlers({
     passwords,
     printers,
@@ -161,7 +176,9 @@ async function bootstrap(): Promise<void> {
 
   registerPrinterHandlers({ printers, jobs, queue, drivers });
 
-  registerAdminHandlers({ config, audit, stats, session, lockout, credentials });
+  registerAdminHandlers({ config, audit, stats, session, lockout, credentials, routerService, passwords });
+
+  registerRouterHandlers({ routerService, session, config, credentials });
 
   app.on('before-quit', () => {
     void db.destroy();
