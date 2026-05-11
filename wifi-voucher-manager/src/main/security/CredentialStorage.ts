@@ -9,43 +9,41 @@ export interface CredentialStorage {
 export class MockCredentialStorage implements CredentialStorage {
   private readonly store = new Map<string, string>();
 
-  // eslint-disable-next-line @typescript-eslint/require-await
-  async get(key: string): Promise<string | null> {
-    return this.store.get(key) ?? null;
+  get(key: string): Promise<string | null> {
+    return Promise.resolve(this.store.get(key) ?? null);
   }
 
-  // eslint-disable-next-line @typescript-eslint/require-await
-  async set(key: string, value: string): Promise<void> {
+  set(key: string, value: string): Promise<void> {
     this.store.set(key, value);
+    return Promise.resolve();
   }
 
-  // eslint-disable-next-line @typescript-eslint/require-await
-  async delete(key: string): Promise<void> {
+  delete(key: string): Promise<void> {
     this.store.delete(key);
+    return Promise.resolve();
   }
 }
 
 export class SafeStorageCredentialStorage implements CredentialStorage {
   private readonly cache = new Map<string, string>();
 
-  // eslint-disable-next-line @typescript-eslint/require-await
-  async get(key: string): Promise<string | null> {
-    return this.cache.get(key) ?? null;
+  get(key: string): Promise<string | null> {
+    return Promise.resolve(this.cache.get(key) ?? null);
   }
 
-  // eslint-disable-next-line @typescript-eslint/require-await
-  async set(key: string, value: string): Promise<void> {
+  set(key: string, value: string): Promise<void> {
     const { safeStorage } = electron;
     if (!safeStorage.isEncryptionAvailable()) {
-      throw new Error('safeStorage no disponible en este sistema');
+      return Promise.reject(new Error('safeStorage no disponible en este sistema'));
     }
     const encrypted = safeStorage.encryptString(value);
     this.cache.set(key, encrypted.toString('base64'));
+    return Promise.resolve();
   }
 
-  // eslint-disable-next-line @typescript-eslint/require-await
-  async delete(key: string): Promise<void> {
+  delete(key: string): Promise<void> {
     this.cache.delete(key);
+    return Promise.resolve();
   }
 }
 
