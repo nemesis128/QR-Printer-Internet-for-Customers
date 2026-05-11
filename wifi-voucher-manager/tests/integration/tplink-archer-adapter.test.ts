@@ -59,3 +59,56 @@ describe('TPLinkArcherAdapter — variant detection', () => {
     await expect(a.login(credentials)).rejects.toThrow(UnsupportedVariantError);
   });
 });
+
+describe('TPLinkArcherAdapter — wrong password', () => {
+  it('login con password incorrecta lanza RouterAuthError', async () => {
+    nock(BASE).get('/').reply(200, loginHtml);
+    nock(BASE).post('/cgi-bin/luci').reply(200, { stat: 'error', error: 'Invalid username or password' });
+    const a = new TPLinkArcherAdapter();
+    await expect(a.login({ ...credentials, password: 'WRONG' })).rejects.toThrow(/Invalid/);
+  });
+});
+
+describe('TPLinkArcherAdapter — guest password lifecycle', () => {
+  it('login + getGuestSsid devuelve el ssid', async () => {
+    nock(BASE).get('/').reply(200, loginHtml);
+    nock(BASE)
+      .post('/cgi-bin/luci')
+      .reply(200, { stat: 'ok', sessionKey: 'ABCDEF' }, { 'Set-Cookie': 'sysauth=ABCDEF' });
+    nock(BASE)
+      .get('/cgi-bin/luci/;stok=ABCDEF/admin/wireless_2g_guest/get')
+      .reply(200, { stat: 'ok', data: { ssid: 'Restaurante-Clientes', enabled: true } });
+
+    const a = new TPLinkArcherAdapter();
+    await a.login(credentials);
+    expect(await a.getGuestSsid()).toBe('Restaurante-Clientes');
+  });
+
+  it('setGuestPassword exitoso no lanza', async () => {
+    nock(BASE).get('/').reply(200, loginHtml);
+    nock(BASE)
+      .post('/cgi-bin/luci')
+      .reply(200, { stat: 'ok', sessionKey: 'ABCDEF' }, { 'Set-Cookie': 'sysauth=ABCDEF' });
+    nock(BASE)
+      .post('/cgi-bin/luci/;stok=ABCDEF/admin/wireless_2g_guest/set')
+      .reply(200, { stat: 'ok' });
+
+    const a = new TPLinkArcherAdapter();
+    await a.login(credentials);
+    await expect(a.setGuestPassword('NEW123XYZ')).resolves.toBeUndefined();
+  });
+
+  it('setGuestPassword rechazado por router (password débil) lanza con el mensaje', async () => {
+    nock(BASE).get('/').reply(200, loginHtml);
+    nock(BASE)
+      .post('/cgi-bin/luci')
+      .reply(200, { stat: 'ok', sessionKey: 'ABCDEF' }, { 'Set-Cookie': 'sysauth=ABCDEF' });
+    nock(BASE)
+      .post('/cgi-bin/luci/;stok=ABCDEF/admin/wireless_2g_guest/set')
+      .reply(200, { stat: 'error', error: 'Password too weak (min 8 chars)' });
+
+    const a = new TPLinkArcherAdapter();
+    await a.login(credentials);
+    await expect(a.setGuestPassword('weak')).rejects.toThrow(/too weak/);
+  });
+});
