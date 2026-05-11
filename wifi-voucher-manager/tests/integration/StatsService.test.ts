@@ -58,4 +58,40 @@ describe('StatsService', () => {
     expect(series).toHaveLength(7);
     expect(series.reduce((acc, p) => acc + p.count, 0)).toBe(1);
   });
+
+  it('getSummary cuenta successfulRotations vía json_extract', async () => {
+    await audit.insert({
+      event_type: 'password_rotation',
+      payload: { success: true },
+    });
+    await audit.insert({
+      event_type: 'password_rotation',
+      payload: { success: false, reason: 'router-down' },
+    });
+    const s = await stats.getSummary();
+    expect(s.totalRotations).toBe(2);
+    expect(s.successfulRotations).toBe(1);
+  });
+
+  it('getDailyPrints ubica filas pasadas en el bucket correcto', async () => {
+    const passwordId = await seedPassword(db);
+    const today = new Date();
+    const threeDaysAgo = new Date(today);
+    threeDaysAgo.setDate(threeDaysAgo.getDate() - 3);
+    const isoThreeDaysAgo = threeDaysAgo.toISOString();
+    const isoToday = today.toISOString();
+    await db('print_log').insert([
+      { password_id: passwordId, success: 1, printed_at: isoThreeDaysAgo },
+      { password_id: passwordId, success: 1, printed_at: isoThreeDaysAgo },
+      { password_id: passwordId, success: 1, printed_at: isoToday },
+    ]);
+    const series = await stats.getDailyPrints(7);
+    expect(series).toHaveLength(7);
+    const todayIso = today.toISOString().slice(0, 10);
+    const pastIso = isoThreeDaysAgo.slice(0, 10);
+    const todayBucket = series.find((p) => p.date === todayIso);
+    const pastBucket = series.find((p) => p.date === pastIso);
+    expect(todayBucket?.count).toBe(1);
+    expect(pastBucket?.count).toBe(2);
+  });
 });

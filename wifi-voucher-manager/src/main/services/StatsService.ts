@@ -40,12 +40,16 @@ export class StatsService {
   }
 
   async getDailyPrints(days: number): Promise<DailyPrintPoint[]> {
+    const today = new Date();
+    const cutoff = new Date(today);
+    cutoff.setDate(cutoff.getDate() - (days - 1));
+    const cutoffStr = cutoff.toISOString().slice(0, 10);
     const rows = await this.db('print_log')
+      .where('printed_at', '>=', cutoffStr)
       .select(this.db.raw("substr(printed_at, 1, 10) as day"))
       .count<{ day: string; c: number }[]>('* as c')
       .groupBy('day');
     const counts = new Map<string, number>(rows.map((r) => [r.day, Number(r.c)]));
-    const today = new Date();
     const out: DailyPrintPoint[] = [];
     for (let i = days - 1; i >= 0; i--) {
       const d = new Date(today);
