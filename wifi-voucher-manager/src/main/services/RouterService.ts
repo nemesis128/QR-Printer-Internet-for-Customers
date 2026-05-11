@@ -58,10 +58,42 @@ export class RouterService {
   }
 
   async applyPasswordNow(
-    _credentials: RouterCredentials,
-    _passwordId: number,
-    _newPassword: string
+    credentials: RouterCredentials,
+    passwordId: number,
+    newPassword: string
   ): Promise<RouterApplyResult> {
-    return Promise.reject(new Error('not yet implemented'));
+    const steps: StepLog[] = [];
+    let failedAt: RouterStep | undefined;
+    try {
+      const login = await this.deps.adapter.login(credentials);
+      steps.push({ step: 'login', ok: login.success, latencyMs: 0 });
+      if (!login.success) {
+        failedAt = 'login';
+        throw new Error(login.errorMessage ?? 'login failed');
+      }
+      await this.deps.adapter.setGuestPassword(newPassword);
+      steps.push({ step: 'set-password', ok: true, latencyMs: 0 });
+      await this.deps.adapter.logout();
+      steps.push({ step: 'logout', ok: true, latencyMs: 0 });
+
+      await this.deps.passwords.markAppliedAutomatically(passwordId, JSON.stringify(steps));
+      await this.deps.audit.insert({
+        event_type: 'password_rotation',
+        payload: { success: true, passwordId, triggered_by: 'router-service' },
+      });
+      return { ok: true, routerResponse: JSON.stringify(steps) };
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Error desconocido';
+      if (!failedAt) {
+        const lastStep = steps[steps.length - 1];
+        failedAt = lastStep && lastStep.ok ? 'set-password' : (lastStep?.step ?? 'set-password');
+      }
+      await this.deps.passwords.markPendingManualApply(passwordId);
+      await this.deps.audit.insert({
+        event_type: 'password_rotation',
+        payload: { success: false, passwordId, failedAt, error: message, triggered_by: 'router-service' },
+      });
+      return { ok: false, routerResponse: null, errorMessage: message, failedAt };
+    }
   }
 }

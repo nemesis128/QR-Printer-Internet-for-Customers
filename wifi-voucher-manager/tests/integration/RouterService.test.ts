@@ -52,3 +52,52 @@ describe('RouterService.testConnection', () => {
     expect(r.steps.find((s) => s.step === 'login')?.ok).toBe(false);
   });
 });
+
+describe('RouterService.applyPasswordNow', () => {
+  let db: ReturnType<typeof createConnection>;
+  let svc: RouterService;
+  let audit: AuditLogRepository;
+  let passwords: PasswordRepository;
+
+  beforeEach(async () => {
+    db = createConnection({ filename: ':memory:' });
+    await runMigrations(db);
+    audit = new AuditLogRepository(db);
+    passwords = new PasswordRepository(db);
+  });
+
+  afterEach(async () => {
+    await db.destroy();
+  });
+
+  it('success marca applied=1 con applied_method=auto y registra audit_log', async () => {
+    const adapter = new MockRouterAdapter({ mode: 'success', ssidGuest: 'X' });
+    svc = new RouterService({ adapter, audit, passwords });
+    const row = await passwords.insert({
+      password: 'NEWPWDXYZ', ssid: 'guest', active: 1, rotated_by: 'manual', router_response: null,
+    });
+    await passwords.markPendingManualApply(row.id);
+    const r = await svc.applyPasswordNow(credentials, row.id, 'NEWPWDXYZ');
+    expect(r.ok).toBe(true);
+    const after = await passwords.getActive();
+    expect(after?.applied).toBe(1);
+    expect(after?.applied_method).toBe('auto');
+    const logs = await audit.list({ eventType: 'password_rotation', limit: 5 });
+    expect(logs).toHaveLength(1);
+  });
+
+  it('failure deja applied=0 y registra audit_log con success=false', async () => {
+    const adapter = new MockRouterAdapter({ mode: 'fail-on-step', failStep: 'set-password', ssidGuest: 'X' });
+    svc = new RouterService({ adapter, audit, passwords });
+    const row = await passwords.insert({
+      password: 'NEWPWDXYZ', ssid: 'guest', active: 1, rotated_by: 'manual', router_response: null,
+    });
+    const r = await svc.applyPasswordNow(credentials, row.id, 'NEWPWDXYZ');
+    expect(r.ok).toBe(false);
+    expect(r.failedAt).toBe('set-password');
+    const after = await passwords.getActive();
+    expect(after?.applied).toBe(0);
+    const logs = await audit.list({ eventType: 'password_rotation', limit: 5 });
+    expect(logs).toHaveLength(1);
+  });
+});
