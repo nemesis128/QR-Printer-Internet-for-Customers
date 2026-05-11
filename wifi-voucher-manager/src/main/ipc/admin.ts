@@ -2,11 +2,14 @@ import electron from 'electron';
 import { z } from 'zod';
 
 import type { AuditLogRepository } from '../db/repositories/AuditLogRepository.js';
+import type { PasswordRepository } from '../db/repositories/PasswordRepository.js';
 import type { CredentialStorage } from '../security/CredentialStorage.js';
 import type { AdminSession } from '../services/AdminSession.js';
 import type { AppConfig, AppConfigStore } from '../services/AppConfigStore.js';
 import type { LockoutTracker } from '../services/LockoutTracker.js';
+import { PasswordService } from '../services/PasswordService.js';
 import { PinCrypto } from '../services/PinCrypto.js';
+import type { RouterService } from '../services/RouterService.js';
 import type { StatsService } from '../services/StatsService.js';
 
 const { ipcMain } = electron;
@@ -73,6 +76,8 @@ export interface AdminHandlerDeps {
   session: AdminSession;
   lockout: LockoutTracker;
   credentials: CredentialStorage;
+  routerService: RouterService;
+  passwords: PasswordRepository;
 }
 
 export interface AdminHandlers {
@@ -184,12 +189,29 @@ export function createAdminHandlers(deps: AdminHandlerDeps): AdminHandlers {
       if (!deps.session.validate(sessionToken)) {
         return { ok: false, message: 'Sesión inválida' };
       }
-      // Stub Fase 3: solo registra el intento; rotación real llega en Fase 5.
-      await deps.audit.insert({
-        event_type: 'password_rotation',
-        payload: { success: false, reason: 'scheduler-not-yet-implemented', triggered_by: 'admin' },
+      const newPassword = PasswordService.generate();
+      const cfgNow = deps.config.getAll();
+      const inserted = await deps.passwords.insert({
+        password: newPassword,
+        ssid: cfgNow.router.ssidGuest || 'guest',
+        active: 0,
+        rotated_by: 'manual',
+        router_response: null,
       });
-      return { ok: false, message: 'Rotación automática pendiente de Fase 5' };
+      const routerPwd = (await deps.credentials.get('router.password')) ?? '';
+      const result = await deps.routerService.applyPasswordNow(
+        { host: cfgNow.router.host, user: cfgNow.router.user, password: routerPwd, model: cfgNow.router.model },
+        inserted.id,
+        newPassword
+      );
+      if (result.ok) {
+        await deps.passwords.setActive(inserted.id);
+        return { ok: true, message: 'Contraseña rotada y aplicada.' };
+      }
+      // Falla: marcar como pending manual + activar
+      await deps.passwords.setActive(inserted.id);
+      await deps.passwords.markPendingManualApply(inserted.id);
+      return { ok: false, message: result.errorMessage ?? 'Falló — pendiente de aplicación manual' };
     },
 
     async setRouterPassword(raw) {

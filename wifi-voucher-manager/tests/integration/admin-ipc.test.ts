@@ -1,7 +1,9 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
+import { MockRouterAdapter } from '../../src/main/adapters/routers/mock-router-adapter.js';
 import { createConnection } from '../../src/main/db/connection.js';
 import { AuditLogRepository } from '../../src/main/db/repositories/AuditLogRepository.js';
+import { PasswordRepository } from '../../src/main/db/repositories/PasswordRepository.js';
 import { runMigrations } from '../../src/main/db/run-migrations.js';
 import { createAdminHandlers } from '../../src/main/ipc/admin.js';
 import { MockCredentialStorage } from '../../src/main/security/CredentialStorage.js';
@@ -9,6 +11,7 @@ import { AdminSession } from '../../src/main/services/AdminSession.js';
 import { AppConfigStore, DEFAULT_APP_CONFIG } from '../../src/main/services/AppConfigStore.js';
 import { LockoutTracker } from '../../src/main/services/LockoutTracker.js';
 import { PinCrypto } from '../../src/main/services/PinCrypto.js';
+import { RouterService } from '../../src/main/services/RouterService.js';
 import { StatsService } from '../../src/main/services/StatsService.js';
 
 class MemBackend {
@@ -17,7 +20,7 @@ class MemBackend {
   set(k: string, v: unknown): void { this.data[k] = v; }
 }
 
-async function buildHandlers() {
+async function buildHandlers(routerMode: 'success' | 'always-fail' = 'success') {
   const db = createConnection({ filename: ':memory:' });
   await runMigrations(db);
   const config = new AppConfigStore(new MemBackend());
@@ -29,7 +32,10 @@ async function buildHandlers() {
   const pinHash = await PinCrypto.hashPin('0000');
   config.updateAdmin({ pinHash, pinIsDefault: true });
   const credentials = new MockCredentialStorage();
-  const handlers = createAdminHandlers({ config, audit, stats, session, lockout, credentials });
+  const passwords = new PasswordRepository(db);
+  const routerAdapter = new MockRouterAdapter({ mode: routerMode, ssidGuest: 'guest' });
+  const routerService = new RouterService({ adapter: routerAdapter, audit, passwords });
+  const handlers = createAdminHandlers({ config, audit, stats, session, lockout, credentials, routerService, passwords });
   return { handlers, db, config };
 }
 
@@ -108,5 +114,21 @@ describe('admin IPC handlers', () => {
     if (!r.ok) throw new Error('precondition');
     const res = await ctx.handlers.setRouterPassword({ sessionToken: r.sessionToken, password: 'AdminPwd' });
     expect(res.ok).toBe(true);
+  });
+
+  it('rotatePasswordNow aplica la nueva contraseña al router en modo success', async () => {
+    const r = await ctx.handlers.validatePin({ pin: '0000' });
+    if (!r.ok) throw new Error('precondition');
+    const out = await ctx.handlers.rotatePasswordNow({ sessionToken: r.sessionToken });
+    expect(out.ok).toBe(true);
+  });
+
+  it('rotatePasswordNow en modo always-fail marca pending manual', async () => {
+    const failCtx = await buildHandlers('always-fail');
+    const r = await failCtx.handlers.validatePin({ pin: '0000' });
+    if (!r.ok) throw new Error('precondition');
+    const out = await failCtx.handlers.rotatePasswordNow({ sessionToken: r.sessionToken });
+    expect(out.ok).toBe(false);
+    await failCtx.db.destroy();
   });
 });
