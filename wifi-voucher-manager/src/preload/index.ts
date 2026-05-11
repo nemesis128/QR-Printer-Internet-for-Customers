@@ -8,11 +8,16 @@ import type {
   DiscoveredPrinter,
   IpcAPI,
   JobStatusSnapshot,
+  PendingManualApplyDTO,
   PrintVoucherResult,
   PrinterConnection,
   PrinterRecord,
   PrinterTestResult,
   RecentJobSummary,
+  RouterAPI,
+  RouterApplyResultDTO,
+  RouterPingResultDTO,
+  RouterTestResultDTO,
   StatsBundleDTO,
   SystemHealth,
   UpdateConfigResultDTO,
@@ -20,20 +25,24 @@ import type {
 } from '../shared/types.js';
 
 const adminApi: AdminAPI = {
-  validatePin: (input): Promise<ValidatePinResultDTO> =>
-    ipcRenderer.invoke('admin:validate-pin', input),
-  changePin: (input): Promise<ChangePinResultDTO> =>
-    ipcRenderer.invoke('admin:change-pin', input),
-  getConfig: (input): Promise<AppConfigDTO | null> =>
-    ipcRenderer.invoke('admin:get-config', input),
-  updateConfig: (input): Promise<UpdateConfigResultDTO> =>
-    ipcRenderer.invoke('admin:update-config', input),
-  getStats: (input): Promise<StatsBundleDTO | null> =>
-    ipcRenderer.invoke('admin:get-stats', input),
-  listLogs: (input): Promise<AuditLogEntryDTO[]> =>
-    ipcRenderer.invoke('admin:list-logs', input),
+  validatePin: (input): Promise<ValidatePinResultDTO> => ipcRenderer.invoke('admin:validate-pin', input),
+  changePin: (input): Promise<ChangePinResultDTO> => ipcRenderer.invoke('admin:change-pin', input),
+  getConfig: (input): Promise<AppConfigDTO | null> => ipcRenderer.invoke('admin:get-config', input),
+  updateConfig: (input): Promise<UpdateConfigResultDTO> => ipcRenderer.invoke('admin:update-config', input),
+  getStats: (input): Promise<StatsBundleDTO | null> => ipcRenderer.invoke('admin:get-stats', input),
+  listLogs: (input): Promise<AuditLogEntryDTO[]> => ipcRenderer.invoke('admin:list-logs', input),
   rotatePasswordNow: (input): Promise<{ ok: boolean; message?: string }> =>
     ipcRenderer.invoke('admin:rotate-password-now', input),
+};
+
+const routerApi: RouterAPI = {
+  pingRouter: (input): Promise<RouterPingResultDTO> => ipcRenderer.invoke('router:ping', input),
+  testConnection: (input): Promise<RouterTestResultDTO> => ipcRenderer.invoke('router:test-connection', input),
+  applyPasswordNow: (input): Promise<RouterApplyResultDTO> => ipcRenderer.invoke('router:apply-password-now', input),
+  markAppliedManually: (input): Promise<{ ok: boolean; message?: string }> =>
+    ipcRenderer.invoke('router:mark-applied-manually', input),
+  listPendingManualApply: (input): Promise<PendingManualApplyDTO[]> =>
+    ipcRenderer.invoke('router:list-pending-manual-apply', input),
 };
 
 const api: IpcAPI = {
@@ -58,6 +67,7 @@ const api: IpcAPI = {
       ipcRenderer.invoke('printer:list-recent-jobs', { limit }),
   },
   admin: adminApi,
+  router: routerApi,
 };
 
 contextBridge.exposeInMainWorld('api', api);
