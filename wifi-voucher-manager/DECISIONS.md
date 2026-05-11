@@ -246,6 +246,38 @@ v8-internal.h:504:72: error: expected '(' for function-style cast or type constr
 
 ---
 
+## D-024 ✅ Activa — Schema `print_log` se conserva tal cual desde Fase 1 (Fase 3 Task 8)
+
+**Plan Fase 3 dijo:** test inserts con `{ password_id: null, success, error, created_at }`.
+
+**Decisión:** el plan tenía nombres incorrectos. La migración real (`20260508_120200_print_log.ts`) define `password_id NOT NULL FK`, `printed_at`, `error_message`, `job_id`. Mantener ese schema (D-005 manda migraciones append-only) y adaptar `StatsService` + tests a las columnas reales.
+
+**Justificación:** Cambiar la migración rompería el invariante append-only de D-005 y la prueba FK en `tests/integration/migrations.test.ts`. Adaptar el servicio es trivial y no afecta el contrato externo.
+
+**Impacto:** `StatsService.getDailyPrints` consulta `printed_at` y agrega `WHERE printed_at >= cutoff` para usar el índice `idx_print_log_date`. Tests siembran un row en `passwords` antes de insertar en `print_log`.
+
+---
+
+## D-025 ✅ Activa — Mock de `window.api` en tests de componentes (Fase 3)
+
+**Decisión:** asignar `(window as any).api = { ... }` en `beforeEach` en lugar de reemplazar `globalThis.window = { ... }`.
+
+**Justificación:** Reemplazar `globalThis.window` con un objeto literal destruye las APIs DOM de happy-dom (`document`, `Node`, `Element`), provocando errores `instanceof` en React y rompiendo `@testing-library/react`. Asignar sólo la propiedad `.api` preserva el entorno DOM completo.
+
+**Aplicación:** todos los tests de componentes con dependencias IPC (`adminStore.test.ts`, `AdminView.test.tsx`, `DiscoveryModal.test.tsx`). El cast `as any` se silencia con `// eslint-disable-next-line @typescript-eslint/no-explicit-any`.
+
+---
+
+## D-026 ✅ Activa — `rotatePasswordNow` stub en Fase 3 (handler real en Fase 5)
+
+**Decisión:** el handler `admin.rotatePasswordNow` en Fase 3 sólo registra una entrada `password_rotation` con `{success: false, reason: 'scheduler-not-yet-implemented', triggered_by: 'admin'}` en `audit_log` y retorna `{ok: false, message: 'Rotación automática pendiente de Fase 5'}`.
+
+**Justificación:** Permite que HomePanel y la pantalla de admin funcionen end-to-end sin esperar al `SchedulerService` (Fase 5) y al `RouterService` (Fase 4). El usuario ve feedback claro y el audit_log conserva los intentos para depuración futura.
+
+**Impacto:** La métrica `successfulRotations` en `StatsService` filtra `json_extract(payload, '$.success') = 1`, por lo que estos stubs no inflan el conteo. La rotación real reemplaza el cuerpo del handler en Fase 5 sin tocar el shim IPC.
+
+---
+
 ## Excepciones registradas
 
-(Ninguna al cierre de Fase 0.)
+(Ninguna al cierre de Fase 3.)
