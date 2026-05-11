@@ -101,3 +101,52 @@ describe('RouterService.applyPasswordNow', () => {
     expect(logs).toHaveLength(1);
   });
 });
+
+describe('RouterService.markAppliedManually', () => {
+  let db: ReturnType<typeof createConnection>;
+  let svc: RouterService;
+  let passwords: PasswordRepository;
+
+  beforeEach(async () => {
+    db = createConnection({ filename: ':memory:' });
+    await runMigrations(db);
+    passwords = new PasswordRepository(db);
+    const audit = new AuditLogRepository(db);
+    const adapter = new MockRouterAdapter({ mode: 'success', ssidGuest: 'X' });
+    svc = new RouterService({ adapter, audit, passwords });
+  });
+
+  afterEach(async () => {
+    await db.destroy();
+  });
+
+  it('markAppliedManually requiere que la password coincida (anti-typo)', async () => {
+    const row = await passwords.insert({
+      password: 'CORRECTXY', ssid: 'guest', active: 1, rotated_by: 'auto', router_response: null,
+    });
+    await passwords.markPendingManualApply(row.id);
+    await expect(svc.markAppliedManually(row.id, 'WRONGTYPE')).rejects.toThrow(/no coincide/);
+    const stillPending = await passwords.getActive();
+    expect(stillPending?.applied).toBe(0);
+  });
+
+  it('markAppliedManually con password correcta marca applied=1', async () => {
+    const row = await passwords.insert({
+      password: 'CORRECTXY', ssid: 'guest', active: 1, rotated_by: 'auto', router_response: null,
+    });
+    await passwords.markPendingManualApply(row.id);
+    await svc.markAppliedManually(row.id, 'CORRECTXY');
+    const after = await passwords.getActive();
+    expect(after?.applied).toBe(1);
+    expect(after?.applied_method).toBe('manual');
+  });
+
+  it('listPendingManualApply delega al repository', async () => {
+    const row = await passwords.insert({
+      password: 'X', ssid: 'guest', active: 1, rotated_by: 'auto', router_response: null,
+    });
+    await passwords.markPendingManualApply(row.id);
+    const list = await svc.listPendingManualApply();
+    expect(list).toHaveLength(1);
+  });
+});

@@ -1,5 +1,3 @@
-import type { AuditLogRepository } from '../db/repositories/AuditLogRepository.js';
-import type { PasswordRepository } from '../db/repositories/PasswordRepository.js';
 import type {
   IRouterAdapter,
   RouterApplyResult,
@@ -8,6 +6,8 @@ import type {
   RouterStep,
   RouterTestResult,
 } from '../adapters/routers/router-types.js';
+import type { AuditLogRepository } from '../db/repositories/AuditLogRepository.js';
+import type { PasswordRepository } from '../db/repositories/PasswordRepository.js';
 
 export interface RouterServiceDeps {
   adapter: IRouterAdapter;
@@ -35,7 +35,9 @@ export class RouterService {
     try {
       const t0 = Date.now();
       const login = await this.deps.adapter.login(credentials);
-      steps.push({ step: 'login', ok: login.success, latencyMs: Date.now() - t0, detail: login.errorMessage });
+      const loginEntry: StepLog = { step: 'login', ok: login.success, latencyMs: Date.now() - t0 };
+      if (login.errorMessage !== undefined) loginEntry.detail = login.errorMessage;
+      steps.push(loginEntry);
       if (!login.success) {
         return { ok: false, steps, errorMessage: login.errorMessage ?? 'Login falló' };
       }
@@ -95,5 +97,24 @@ export class RouterService {
       });
       return { ok: false, routerResponse: null, errorMessage: message, failedAt };
     }
+  }
+
+  async markAppliedManually(passwordId: number, confirmedPassword: string): Promise<void> {
+    const all = await this.deps.passwords.listRecent(200);
+    const row = all.find((p) => p.id === passwordId);
+    if (!row) throw new Error(`Password id=${passwordId} no existe`);
+    if (row.password !== confirmedPassword) {
+      throw new Error('La contraseña ingresada no coincide con la generada');
+    }
+    await this.deps.passwords.markAppliedManually(passwordId);
+    await this.deps.audit.insert({
+      event_type: 'password_rotation',
+      payload: { success: true, passwordId, triggered_by: 'manual-confirmation' },
+    });
+  }
+
+  async listPendingManualApply(): Promise<Array<{ id: number; password: string; ssid: string; created_at: string }>> {
+    const rows = await this.deps.passwords.listPendingManualApply();
+    return rows.map((r) => ({ id: r.id, password: r.password, ssid: r.ssid, created_at: r.created_at }));
   }
 }
