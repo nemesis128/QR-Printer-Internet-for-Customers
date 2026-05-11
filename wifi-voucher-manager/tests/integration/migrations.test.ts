@@ -3,12 +3,12 @@ import { describe, expect, it } from 'vitest';
 import { createConnection } from '../../src/main/db/connection.js';
 import { runMigrations } from '../../src/main/db/run-migrations.js';
 
-describe('migrations — Fase 1 schema', () => {
-  it('aplica las 5 migraciones desde DB vacía', async () => {
+describe('migrations — Fase 1–4 schema', () => {
+  it('aplica las 6 migraciones desde DB vacía', async () => {
     const db = createConnection({ filename: ':memory:' });
     try {
       const result = await runMigrations(db);
-      expect(result.filesApplied).toHaveLength(5);
+      expect(result.filesApplied).toHaveLength(6);
       expect(result.filesApplied).toEqual(
         expect.arrayContaining([
           expect.stringContaining('init_system'),
@@ -16,6 +16,7 @@ describe('migrations — Fase 1 schema', () => {
           expect.stringContaining('print_log'),
           expect.stringContaining('config_audit'),
           expect.stringContaining('printers'),
+          expect.stringContaining('passwords_applied'),
         ])
       );
     } finally {
@@ -61,7 +62,7 @@ describe('migrations — Fase 1 schema', () => {
     const db = createConnection({ filename: ':memory:' });
     try {
       const first = await runMigrations(db);
-      expect(first.filesApplied.length).toBe(5);
+      expect(first.filesApplied.length).toBe(6);
       const second = await runMigrations(db);
       expect(second.filesApplied.length).toBe(0);
     } finally {
