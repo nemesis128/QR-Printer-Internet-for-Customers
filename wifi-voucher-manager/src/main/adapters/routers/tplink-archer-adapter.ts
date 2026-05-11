@@ -104,17 +104,24 @@ export class TPLinkArcherAdapter implements IRouterAdapter {
 
   async setGuestPassword(newPassword: string): Promise<void> {
     this.requireAuth();
-    const resp = await this.client!.post(
-      `/cgi-bin/luci/;stok=${this.sessionKey}/admin/wireless_2g_guest/set`,
-      new URLSearchParams({ key: newPassword }).toString(),
-      {
-        timeout: TIMEOUTS.update,
-        headers: { 'Content-Type': 'application/x-www-form-urlencoded', ...this.authHeaders().headers },
-      },
-    );
-    const body = resp.data as { stat?: string; error?: string };
-    if (body.stat !== 'ok') {
-      throw new Error(body.error ?? `HTTP ${resp.status}`);
+    try {
+      const resp = await this.client!.post(
+        `/cgi-bin/luci/;stok=${this.sessionKey}/admin/wireless_2g_guest/set`,
+        new URLSearchParams({ key: newPassword }).toString(),
+        {
+          timeout: TIMEOUTS.update,
+          headers: { 'Content-Type': 'application/x-www-form-urlencoded', ...this.authHeaders().headers },
+        },
+      );
+      const body = resp.data as { stat?: string; error?: string };
+      if (body.stat !== 'ok') {
+        throw new Error(body.error ?? `HTTP ${resp.status}`);
+      }
+    } catch (err) {
+      if (err instanceof AxiosError && err.code === 'ECONNABORTED') {
+        throw new RouterTimeoutError('set-password', TIMEOUTS.update);
+      }
+      throw err;
     }
   }
 
@@ -153,7 +160,7 @@ export class TPLinkArcherAdapter implements IRouterAdapter {
     return this.cookie ? { headers: { Cookie: this.cookie } } : { headers: {} };
   }
 
-  // Markers used by RouterTimeoutError consumers — removed in Task 9
-  static _unusedTimeoutMarker = RouterTimeoutError;
-  static _unusedSanitizer = sanitizeForLog;
+  static safeBodyFor(body: string): string {
+    return sanitizeForLog(body);
+  }
 }
