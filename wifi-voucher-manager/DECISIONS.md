@@ -380,6 +380,38 @@ En caso contrario instancia `TPLinkArcherAdapter`.
 
 ---
 
+## D-036 ✅ Activa — Auto-arranque condicionado a pinIsDefault=false (Fase 6 Task 1)
+
+**Decisión:** `app.setLoginItemSettings({ openAtLogin: true })` se activa automáticamente cuando el admin completa el primer cambio de PIN (deja de ser `0000`). No requiere configuración explícita por el usuario.
+
+**Why:** el flujo de onboarding ya fuerza el cambio de PIN antes de mostrar AdminView (D-013). Activar auto-arranque sólo después de ese cambio garantiza que (a) el dueño quiso configurar el sistema (no es un test de instalación), y (b) la primera vez que la app arranca tras reboot ya tiene un PIN custom, no el default — no estamos exponiendo el `0000` en un sistema desatendido.
+
+**Impacto:** en Linux la API es no-op (Electron docs); en macOS/Windows el setting persiste en el sistema. El admin puede desactivarlo manualmente desde Windows → Configuración → Aplicaciones → Inicio si lo necesita. Para v1 no exponemos toggle en la UI. El callback `onPinChanged` en `AdminHandlerDeps` mantiene `admin.changePin` desacoplado de la API de Electron `app`.
+
+---
+
+## D-037 ✅ Activa — Logo se persiste en userData/, no en assets del bundle (Fase 6 Task 2)
+
+**Decisión:** `admin.uploadLogo` copia el archivo seleccionado a `app.getPath('userData')/logo.<ext>` y guarda la ruta absoluta en `business.logoPath`. NO se embebe en el bundle ni en `resources/`.
+
+**Why:** el bundle es read-only post-instalación (asar). El logo es contenido del cliente, no del producto — debe vivir en `userData/` igual que la DB y la config. Una actualización del `.exe` preserva el logo del cliente.
+
+**Impacto:** el voucher template (Fase 1 / Fase 2) puede leer `business.logoPath` directamente del config para renderizarlo en la imagen ESC/POS. En Fase 6 NO implementamos esa lectura — queda como path persistido para que una iteración futura lo incorpore al template sin tocar el flujo de upload. Extensiones aceptadas: `.png`, `.jpg`, `.jpeg`.
+
+---
+
+## D-038 ⚠️ Excepción — 22 vulnerabilidades en dev-only deps aceptadas (Fase 6 Task 5)
+
+**Decisión:** `npm audit` reporta 22 vulnerabilidades (2 low, 6 moderate, 13 high, 1 critical) en cadenas de dependencias dev-only: `tar`, `@mapbox/node-pre-gyp`, `cacache` — todas tránsito a través de `@electron/rebuild`, `app-builder-lib`, `node-gyp`. NO se aplica `npm audit fix --force` porque requiere bumpear `vitest` a 4.x, `electron-builder` a 26.x y `@vitest/coverage-v8` a 4.x — major versions con potencial breaking del test suite (49 archivos, 266 tests) y del pipeline NSIS recién estabilizado.
+
+**Why:** las vulnerabilidades son todas en build tooling (path traversal en tar extraction). Vector requiere alimentar tar files maliciosos al entorno dev — no aplicable porque `npm install` descarga del registry oficial. Ningún componente vulnerable shipea al `.exe` final (es asar empacado).
+
+**Impacto:** la cadena de build queda con vulns conocidas pero sin exposición operativa. Re-evaluar en v2 cuando vitest 4 y electron-builder 26 sean LTS y el upgrade sea trivial. El `.exe` distribuido al cliente NO contiene `tar`, `node-gyp`, `cacache` ni `@mapbox/node-pre-gyp`.
+
+**Mitigación:** los runners de CI (GitHub Actions) se actualizan automáticamente; un eventual exploit en una herramienta dev se detectaría rápido. Localmente, `npm ci` usa lockfile + integrity hashes.
+
+---
+
 ## Excepciones registradas
 
-(Ninguna al cierre de Fase 5.)
+- **D-038** — 22 vulns de `npm audit` aceptadas en dev-only deps (path traversal de tar). Reasignar en v2.
