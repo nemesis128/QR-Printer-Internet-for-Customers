@@ -234,6 +234,7 @@ async function bootstrap(): Promise<void> {
     lockout,
     credentials,
     orchestrator,
+    userDataPath: app.getPath('userData'),
     onPinChanged: () => syncLoginItemSetting(true),
   });
 
