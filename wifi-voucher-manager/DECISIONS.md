@@ -412,6 +412,16 @@ En caso contrario instancia `TPLinkArcherAdapter`.
 
 ---
 
+## D-039 ✅ Activa — Fase 7 entrega runbooks operativos, no código (Fase 7)
+
+**Decisión:** Fase 7 NO modifica el producto. Entrega 7 runbooks Markdown en `docs/runbooks/` + un script Node `scripts/piloto-kpis.mjs` para extracción de métricas. La operación real del piloto (1-2 semanas) sucede post-tag con código v1 inmutable.
+
+**Why:** el spec posiciona Fase 7 como "operación", no como "desarrollo". Cualquier cambio de código durante el piloto se canaliza via `HOTFIX-POLICY.md` con SLA explícito y test de regresión.
+
+**Impacto:** el tag `fase-7-ready` marca el READY del piloto (todo documentado, instalador funciona). El cierre exitoso del piloto se marca aparte con `v1.0.0` (Tag GA), siguiendo `PILOTO-EXIT-CRITERIA.md`. La política `HOTFIX-POLICY.md` exige test de regresión antes de cada fix crítico/medio durante la operación.
+
+---
+
 ## Excepciones registradas
 
 - **D-038** — 22 vulns de `npm audit` aceptadas en dev-only deps (path traversal de tar). Reasignar en v2.
