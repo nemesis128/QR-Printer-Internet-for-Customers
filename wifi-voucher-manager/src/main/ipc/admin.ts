@@ -75,6 +75,7 @@ export interface AdminHandlerDeps {
   lockout: LockoutTracker;
   credentials: CredentialStorage;
   orchestrator: RotationOrchestrator;
+  onPinChanged?: () => void;
 }
 
 export interface AdminHandlers {
@@ -127,6 +128,7 @@ export function createAdminHandlers(deps: AdminHandlerDeps): AdminHandlers {
       const newHash = await PinCrypto.hashPin(input.newPin);
       deps.config.updateAdmin({ pinHash: newHash, pinIsDefault: false });
       await deps.audit.insert({ event_type: 'admin_pin_change', payload: { success: true } });
+      deps.onPinChanged?.();
       return { ok: true };
     },
 

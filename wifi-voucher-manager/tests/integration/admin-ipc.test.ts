@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { MockRouterAdapter } from '../../src/main/adapters/routers/mock-router-adapter.js';
 import { createConnection } from '../../src/main/db/connection.js';
@@ -6,6 +6,7 @@ import { AuditLogRepository } from '../../src/main/db/repositories/AuditLogRepos
 import { PasswordRepository } from '../../src/main/db/repositories/PasswordRepository.js';
 import { runMigrations } from '../../src/main/db/run-migrations.js';
 import { createAdminHandlers } from '../../src/main/ipc/admin.js';
+import type { AdminHandlerDeps } from '../../src/main/ipc/admin.js';
 import { MockCredentialStorage } from '../../src/main/security/CredentialStorage.js';
 import { AdminSession } from '../../src/main/services/AdminSession.js';
 import { AppConfigStore, DEFAULT_APP_CONFIG } from '../../src/main/services/AppConfigStore.js';
@@ -21,7 +22,10 @@ class MemBackend {
   set(k: string, v: unknown): void { this.data[k] = v; }
 }
 
-async function buildHandlers(routerMode: 'success' | 'always-fail' = 'success') {
+async function buildHandlers(
+  routerMode: 'success' | 'always-fail' = 'success',
+  extras: Partial<AdminHandlerDeps> = {}
+) {
   const db = createConnection({ filename: ':memory:' });
   await runMigrations(db);
   const config = new AppConfigStore(new MemBackend());
@@ -43,8 +47,11 @@ async function buildHandlers(routerMode: 'success' | 'always-fail' = 'success') 
     routerCredentials: { host: '192.168.1.1', user: 'admin', password: 'AdminPwd', model: 'Archer C24' },
     ssidGuest: 'guest',
   });
-  const handlers = createAdminHandlers({ config, audit, stats, session, lockout, credentials, orchestrator });
-  return { handlers, db, config };
+  const handlers = createAdminHandlers({
+    config, audit, stats, session, lockout, credentials, orchestrator,
+    ...extras,
+  });
+  return { handlers, db, config, passwords };
 }
 
 describe('admin IPC handlers', () => {
@@ -138,5 +145,19 @@ describe('admin IPC handlers', () => {
     const out = await failCtx.handlers.rotatePasswordNow({ sessionToken: r.sessionToken });
     expect(out.ok).toBe(false);
     await failCtx.db.destroy();
+  });
+
+  it('changePin exitoso dispara onPinChanged callback', async () => {
+    const onPinChanged = vi.fn();
+    const ctxLocal = await buildHandlers('success', { onPinChanged });
+    const session = await ctxLocal.handlers.validatePin({ pin: '0000' });
+    if (!session.ok) throw new Error('precondition');
+    await ctxLocal.handlers.changePin({
+      sessionToken: session.sessionToken,
+      currentPin: '0000',
+      newPin: '5829',
+    });
+    expect(onPinChanged).toHaveBeenCalledOnce();
+    await ctxLocal.db.destroy();
   });
 });

@@ -42,6 +42,14 @@ const { app, BrowserWindow, session } = electron;
 
 app.setName('wifi-voucher-manager');
 
+function syncLoginItemSetting(openAtLogin: boolean): void {
+  if (process.platform === 'linux') return; // setLoginItemSettings no-op en linux
+  app.setLoginItemSettings({
+    openAtLogin,
+    name: 'WiFi Voucher Manager',
+  });
+}
+
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 const DEFAULT_SSID = 'Restaurante-Clientes';
@@ -103,6 +111,9 @@ async function bootstrap(): Promise<void> {
     const hash = await PinCrypto.hashPin('0000');
     config.updateAdmin({ pinHash: hash, pinIsDefault: true });
   }
+
+  const initialPinIsDefault = config.getAll().admin.pinIsDefault;
+  syncLoginItemSetting(!initialPinIsDefault);
 
   const audit = new AuditLogRepository(db);
   const stats = new StatsService(db, audit);
@@ -215,7 +226,16 @@ async function bootstrap(): Promise<void> {
 
   registerPrinterHandlers({ printers, jobs, queue, drivers });
 
-  registerAdminHandlers({ config, audit, stats, session, lockout, credentials, orchestrator });
+  registerAdminHandlers({
+    config,
+    audit,
+    stats,
+    session,
+    lockout,
+    credentials,
+    orchestrator,
+    onPinChanged: () => syncLoginItemSetting(true),
+  });
 
   registerRouterHandlers({ routerService, session, config, credentials });
 
