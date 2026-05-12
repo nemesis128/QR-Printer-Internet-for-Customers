@@ -65,6 +65,14 @@ export const WaiterView: FC<WaiterViewProps> = ({ onOpenAdmin }) => {
 
   return (
     <div className="relative flex min-h-screen flex-col items-center justify-center gap-8 bg-background">
+      {health?.lastHealthCheckFailed ? (
+        <span
+          aria-label="Self-check fallido"
+          title="El último self-check diario falló — revisar logs en Administración"
+          className="absolute top-4 right-4 h-3 w-3 rounded-full bg-warning"
+        />
+      ) : null}
+
       {pending.length > 0 && pending[0] ? (
         <div className="absolute left-1/2 top-32 -translate-x-1/2 w-[600px] border-l-[3px] border-error bg-surface p-4 shadow-card">
           <p className="mb-2 text-sm text-textPrimary">Aplicación manual de contraseña pendiente:</p>

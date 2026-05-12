@@ -141,4 +141,30 @@ describe('WaiterView (Fase 2)', () => {
     render(<WaiterView />);
     await waitFor(() => expect(screen.getByText('NEWPWD')).toBeInTheDocument());
   });
+
+  it('muestra dot ámbar cuando lastHealthCheckFailed=true', async () => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (window as any).api = {
+      waiter: {
+        getCurrentSSID: vi.fn().mockResolvedValue('TestSSID'),
+        getSystemHealth: vi.fn(async () => ({
+          printerOnline: true,
+          routerReachable: false,
+          passwordValid: true,
+          schedulerRunning: true,
+          lastRotation: '2026-05-11T23:00:00Z',
+          lastRotationStatus: 'success',
+          lastHealthCheckFailed: true,
+        })),
+        printVoucher: vi.fn(),
+        listPendingManualApply: vi.fn(async () => []),
+      },
+      printer: {
+        getJobStatus: vi.fn(),
+        retryJob: vi.fn(),
+      },
+    };
+    render(<WaiterView />);
+    await waitFor(() => expect(screen.getByLabelText(/self-check fallido/i)).toBeInTheDocument());
+  });
 });
