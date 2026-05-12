@@ -30,13 +30,15 @@ export function registerWaiterHandlers(deps: WaiterHandlerDeps): void {
     const active = await deps.passwords.getActive();
     const allPrinters = await deps.printers.list();
     const activePrinter = allPrinters.find((p) => p.active === 1);
+    const sys = deps.config.getAll().system;
     return {
       printerOnline: activePrinter !== undefined,
       routerReachable: false,
       passwordValid: active !== null,
-      schedulerRunning: false,
+      schedulerRunning: true,
       lastRotation: active?.created_at ?? null,
-      lastRotationStatus: active ? 'success' : null,
+      lastRotationStatus: active ? (active.applied === 1 ? 'success' : 'pending') : null,
+      lastHealthCheckFailed: sys.lastHealthCheckFailed,
     };
   });
 

@@ -5,6 +5,7 @@ export interface SystemHealth {
   schedulerRunning: boolean;
   lastRotation: string | null;
   lastRotationStatus: 'success' | 'failed' | 'pending' | null;
+  lastHealthCheckFailed: boolean;
 }
 
 export interface PrintVoucherJobResult {
