@@ -11,6 +11,7 @@ import { AdminSession } from '../../src/main/services/AdminSession.js';
 import { AppConfigStore, DEFAULT_APP_CONFIG } from '../../src/main/services/AppConfigStore.js';
 import { LockoutTracker } from '../../src/main/services/LockoutTracker.js';
 import { PinCrypto } from '../../src/main/services/PinCrypto.js';
+import { RotationOrchestrator } from '../../src/main/services/RotationOrchestrator.js';
 import { RouterService } from '../../src/main/services/RouterService.js';
 import { StatsService } from '../../src/main/services/StatsService.js';
 
@@ -33,9 +34,16 @@ async function buildHandlers(routerMode: 'success' | 'always-fail' = 'success') 
   config.updateAdmin({ pinHash, pinIsDefault: true });
   const credentials = new MockCredentialStorage();
   const passwords = new PasswordRepository(db);
-  const routerAdapter = new MockRouterAdapter({ mode: routerMode, ssidGuest: 'guest' });
-  const routerService = new RouterService({ adapter: routerAdapter, audit, passwords });
-  const handlers = createAdminHandlers({ config, audit, stats, session, lockout, credentials, routerService, passwords });
+  const adapter = new MockRouterAdapter({ mode: routerMode, ssidGuest: 'guest' });
+  const routerService = new RouterService({ adapter, audit, passwords });
+  const orchestrator = new RotationOrchestrator({
+    routerService,
+    passwords,
+    audit,
+    routerCredentials: { host: '192.168.1.1', user: 'admin', password: 'AdminPwd', model: 'Archer C24' },
+    ssidGuest: 'guest',
+  });
+  const handlers = createAdminHandlers({ config, audit, stats, session, lockout, credentials, orchestrator });
   return { handlers, db, config };
 }
 
