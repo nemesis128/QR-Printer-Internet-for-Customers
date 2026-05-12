@@ -1,7 +1,7 @@
 import { exec } from 'node:child_process';
 import { promisify } from 'node:util';
 
-import noble from '@abandonware/noble';
+import type noble from '@abandonware/noble';
 import { SerialPort } from 'serialport';
 
 import type { DiscoveredPrinter, PrinterConnection } from '../../../shared/types.js';
@@ -171,7 +171,15 @@ export async function detectBluetoothPrinters(): Promise<DiscoveredPrinter[]> {
 // ─── BLE discovery ──────────────────────────────────────────────────────────
 
 async function bleScanFor(durationMs: number): Promise<DiscoveredPrinter[]> {
-  if ((noble as unknown as { state: string }).state !== 'poweredOn') {
+  // Lazy import: noble carga su binding nativo al evaluarse. Mantenerlo fuera del
+  // top-level evita que tests sin BLE (detect.test.ts) fallen en CI cuando el
+  // prebuild de @abandonware/bluetooth-hci-socket no está disponible.
+  const nobleImport = (await import('@abandonware/noble')) as unknown as {
+    default: typeof noble;
+  };
+  const nobleInstance = nobleImport.default;
+
+  if ((nobleInstance as unknown as { state: string }).state !== 'poweredOn') {
     await new Promise<void>((resolve, reject) => {
       const timeout = setTimeout(
         () => reject(new Error('BLE adapter no disponible (timeout 3s)')),
@@ -180,21 +188,21 @@ async function bleScanFor(durationMs: number): Promise<DiscoveredPrinter[]> {
       const handler = (state: string): void => {
         if (state === 'poweredOn') {
           clearTimeout(timeout);
-          noble.removeListener('stateChange', handler);
+          nobleInstance.removeListener('stateChange', handler);
           resolve();
         }
       };
-      noble.on('stateChange', handler);
+      nobleInstance.on('stateChange', handler);
     });
   }
 
   const found = new Map<string, DiscoveredPrinter>();
 
-  await noble.startScanningAsync([], true);
+  await nobleInstance.startScanningAsync([], true);
 
   await new Promise<void>((resolve) => {
     const timer = setTimeout(() => {
-      noble.removeListener('discover', listener);
+      nobleInstance.removeListener('discover', listener);
       resolve();
     }, durationMs);
 
@@ -214,14 +222,14 @@ async function bleScanFor(durationMs: number): Promise<DiscoveredPrinter[]> {
       }
     };
 
-    noble.on('discover', listener);
+    nobleInstance.on('discover', listener);
 
-    void noble.stopScanningAsync().finally(() => {
+    void nobleInstance.stopScanningAsync().finally(() => {
       clearTimeout(timer);
     });
   });
 
-  void noble.stopScanningAsync().finally(() => {
+  void nobleInstance.stopScanningAsync().finally(() => {
     /* cleanup */
   });
 
