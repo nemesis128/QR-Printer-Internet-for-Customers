@@ -27,6 +27,7 @@
     "lint": "eslint . --max-warnings=0",
     "type-check": "tsc -p tsconfig.electron.json --noEmit && tsc -p tsconfig.renderer.json --noEmit",
     "format": "prettier --write .",
+    "kpis": "node scripts/piloto-kpis.mjs",
     "smoke:noble": "cross-env ELECTRON_RUN_AS_NODE= NODE_OPTIONS=\"--import tsx/esm\" electron scripts/smoke-noble.ts",
     "db:migrate": "tsx src/main/db/cli/migrate.ts",
     "predist": "electron-rebuild -f -w better-sqlite3,@abandonware/noble,serialport,argon2 && npm run build && node scripts/verify-csp.mjs && node scripts/sanitize-build.mjs",
