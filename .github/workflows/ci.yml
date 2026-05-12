@@ -51,6 +51,8 @@ jobs:
         if: runner.os == 'Linux'
         run: sudo apt-get update && sudo apt-get install -y libcups2-dev libudev-dev
       - run: npm ci --ignore-scripts
+      - name: Install Electron binary
+        run: node node_modules/electron/install.js
       - name: Rebuild native modules (Node ABI)
         run: npm rebuild better-sqlite3 argon2 || true
       - run: npm run test:coverage
