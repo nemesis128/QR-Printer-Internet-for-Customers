@@ -52,9 +52,17 @@ jobs:
         run: sudo apt-get update && sudo apt-get install -y libcups2-dev libudev-dev
       - run: npm ci --ignore-scripts
       - name: Install Electron binary
-        run: node node_modules/electron/install.js
+        run: |
+          node node_modules/electron/install.js
+          node -e "console.log('electron path:', require('electron'))"
       - name: Rebuild native modules (Node ABI)
-        run: npm rebuild better-sqlite3 argon2 || true
+        run: |
+          npm rebuild better-sqlite3
+          npm rebuild argon2
+      - name: Verify native modules load
+        run: |
+          node -e "console.log('better-sqlite3:', require('better-sqlite3').name)"
+          node -e "console.log('argon2:', typeof require('argon2').hash)"
       - run: npm run test:coverage
       - uses: actions/upload-artifact@v4
         if: matrix.os == 'ubuntu-latest'
