@@ -66,13 +66,19 @@ export const HomePanel: FC = () => {
             <li>
               Router:{' '}
               <span className={health?.routerReachable ? 'text-success' : 'text-warning'}>
-                {health?.routerReachable ? 'Alcanzable' : 'No verificado (Fase 4)'}
+                {health?.routerReachable ? 'Alcanzable' : 'No verificado'}
               </span>
             </li>
             <li>
-              Scheduler:{' '}
+              Auto-rotación:{' '}
               <span className={health?.schedulerRunning ? 'text-success' : 'text-warning'}>
-                {health?.schedulerRunning ? 'Activo' : 'Pendiente (Fase 5)'}
+                {health?.schedulerRunning ? 'Activa' : 'Detenida'}
+              </span>
+            </li>
+            <li>
+              Self-check diario:{' '}
+              <span className={health?.lastHealthCheckFailed ? 'text-warning' : 'text-success'}>
+                {health?.lastHealthCheckFailed ? 'Última falló — revisar logs' : 'OK'}
               </span>
             </li>
           </ul>
