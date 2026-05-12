@@ -26,12 +26,15 @@ import { createCredentialStorage } from './security/CredentialStorage.js';
 import { DEV_CSP, PROD_CSP } from './security/csp.js';
 import { AdminSession } from './services/AdminSession.js';
 import { AppConfigStore } from './services/AppConfigStore.js';
+import { HealthCheckService } from './services/HealthCheckService.js';
 import { LockoutTracker } from './services/LockoutTracker.js';
 import { PasswordService } from './services/PasswordService.js';
 import { PinCrypto } from './services/PinCrypto.js';
 import { PrintQueue } from './services/PrintQueue.js';
 import { QRService } from './services/QRService.js';
+import { RotationOrchestrator } from './services/RotationOrchestrator.js';
 import { RouterService } from './services/RouterService.js';
+import { SchedulerService } from './services/SchedulerService.js';
 import { StatsService } from './services/StatsService.js';
 import { renderPrintBytes } from './services/render.js';
 
@@ -165,6 +168,41 @@ async function bootstrap(): Promise<void> {
 
   const routerService = new RouterService({ adapter: routerAdapter, audit, passwords });
 
+  const orchestrator = new RotationOrchestrator({
+    routerService,
+    passwords,
+    audit,
+    routerCredentials: {
+      host: config.getAll().router.host,
+      user: config.getAll().router.user,
+      password: (await credentials.get('router.password')) ?? '',
+      model: config.getAll().router.model,
+    },
+    ssidGuest: config.getAll().router.ssidGuest || 'guest',
+  });
+
+  const healthCheck = new HealthCheckService({
+    db,
+    audit,
+    passwords,
+    routerService,
+    config,
+    routerHost: config.getAll().router.host || '192.168.1.1',
+    userDataPath: app.getPath('userData'),
+    dbFilePath: dbPath,
+  });
+
+  const scheduler = new SchedulerService({
+    orchestrator,
+    healthCheck,
+    passwords,
+    config,
+    db,
+  });
+
+  scheduler.startAll();
+  void scheduler.runStartupRecovery();
+
   registerWaiterHandlers({
     passwords,
     printers,
@@ -177,11 +215,12 @@ async function bootstrap(): Promise<void> {
 
   registerPrinterHandlers({ printers, jobs, queue, drivers });
 
-  registerAdminHandlers({ config, audit, stats, session, lockout, credentials, routerService, passwords });
+  registerAdminHandlers({ config, audit, stats, session, lockout, credentials, orchestrator });
 
   registerRouterHandlers({ routerService, session, config, credentials });
 
   app.on('before-quit', () => {
+    scheduler.stop();
     void db.destroy();
   });
 }
