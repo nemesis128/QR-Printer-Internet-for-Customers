@@ -1,4 +1,3 @@
-#!/usr/bin/env node
 import { argv, exit, env, platform } from 'node:process';
 import { join } from 'node:path';
 import { homedir } from 'node:os';
