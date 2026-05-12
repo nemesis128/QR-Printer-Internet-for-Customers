@@ -180,6 +180,10 @@ export interface AdminAPI {
   }) => Promise<AuditLogEntryDTO[]>;
   rotatePasswordNow: (input: { sessionToken: string }) => Promise<{ ok: boolean; message?: string }>;
   setRouterPassword: (input: { sessionToken: string; password: string }) => Promise<{ ok: boolean; message?: string }>;
+  uploadLogo: (input: {
+    sessionToken: string;
+    sourcePath: string;
+  }) => Promise<{ ok: boolean; logoPath?: string; message?: string }>;
 }
 
 // ─── Router (Fase 4) ────────────────────────────────────────────────────────

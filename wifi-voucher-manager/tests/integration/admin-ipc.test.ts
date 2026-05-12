@@ -1,3 +1,7 @@
+import { mkdtempSync, writeFileSync, existsSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import path from 'node:path';
+
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { MockRouterAdapter } from '../../src/main/adapters/routers/mock-router-adapter.js';
@@ -47,11 +51,13 @@ async function buildHandlers(
     routerCredentials: { host: '192.168.1.1', user: 'admin', password: 'AdminPwd', model: 'Archer C24' },
     ssidGuest: 'guest',
   });
+  const userDataPath = mkdtempSync(path.join(tmpdir(), 'wvm-admin-ipc-'));
   const handlers = createAdminHandlers({
     config, audit, stats, session, lockout, credentials, orchestrator,
+    userDataPath,
     ...extras,
   });
-  return { handlers, db, config, passwords };
+  return { handlers, db, config, passwords, userDataPath };
 }
 
 describe('admin IPC handlers', () => {
@@ -158,6 +164,37 @@ describe('admin IPC handlers', () => {
       newPin: '5829',
     });
     expect(onPinChanged).toHaveBeenCalledOnce();
+    await ctxLocal.db.destroy();
+  });
+
+  it('uploadLogo copia el archivo y persiste business.logoPath', async () => {
+    const ctxLocal = await buildHandlers('success');
+    const srcDir = mkdtempSync(path.join(tmpdir(), 'wvm-logo-src-'));
+    const srcPath = path.join(srcDir, 'source.png');
+    writeFileSync(srcPath, Buffer.from([0x89, 0x50, 0x4e, 0x47])); // PNG magic bytes
+    const session = await ctxLocal.handlers.validatePin({ pin: '0000' });
+    if (!session.ok) throw new Error('precondition');
+    const r = await ctxLocal.handlers.uploadLogo({
+      sessionToken: session.sessionToken,
+      sourcePath: srcPath,
+    });
+    expect(r.ok).toBe(true);
+    expect(r.logoPath).toBeDefined();
+    expect(existsSync(r.logoPath!)).toBe(true);
+    expect(ctxLocal.config.getAll().business.logoPath).toBe(r.logoPath);
+    await ctxLocal.db.destroy();
+  });
+
+  it('uploadLogo rechaza extensiones no soportadas', async () => {
+    const ctxLocal = await buildHandlers('success');
+    const session = await ctxLocal.handlers.validatePin({ pin: '0000' });
+    if (!session.ok) throw new Error('precondition');
+    const r = await ctxLocal.handlers.uploadLogo({
+      sessionToken: session.sessionToken,
+      sourcePath: '/tmp/source.gif',
+    });
+    expect(r.ok).toBe(false);
+    expect(r.message).toContain('Formato no soportado');
     await ctxLocal.db.destroy();
   });
 });

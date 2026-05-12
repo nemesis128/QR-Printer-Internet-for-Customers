@@ -1,3 +1,6 @@
+import { copyFile } from 'node:fs/promises';
+import path from 'node:path';
+
 import electron from 'electron';
 import { z } from 'zod';
 
@@ -40,6 +43,10 @@ const UpdateConfigSchema = z.object({
   value: z.unknown(),
 });
 const SessionOnlySchema = z.object({ sessionToken: z.string().min(1) });
+const UploadLogoSchema = z.object({
+  sessionToken: z.string().min(1),
+  sourcePath: z.string().min(1).max(1024),
+});
 const EventTypeSchema = z.enum([
   'password_rotation',
   'print',
@@ -75,6 +82,7 @@ export interface AdminHandlerDeps {
   lockout: LockoutTracker;
   credentials: CredentialStorage;
   orchestrator: RotationOrchestrator;
+  userDataPath: string;
   onPinChanged?: () => void;
 }
 
@@ -87,6 +95,7 @@ export interface AdminHandlers {
   listLogs: (input: unknown) => Promise<unknown>;
   rotatePasswordNow: (input: unknown) => Promise<{ ok: boolean; message?: string }>;
   setRouterPassword: (input: unknown) => Promise<{ ok: boolean; message?: string }>;
+  uploadLogo: (input: unknown) => Promise<{ ok: boolean; logoPath?: string; message?: string }>;
 }
 
 export function createAdminHandlers(deps: AdminHandlerDeps): AdminHandlers {
@@ -205,6 +214,30 @@ export function createAdminHandlers(deps: AdminHandlerDeps): AdminHandlers {
       await deps.audit.insert({ event_type: 'config_change', payload: { section: 'router-password' } });
       return { ok: true };
     },
+
+    async uploadLogo(raw) {
+      const input = UploadLogoSchema.parse(raw);
+      if (!deps.session.validate(input.sessionToken)) {
+        return { ok: false, message: 'Sesión inválida' };
+      }
+      const ext = path.extname(input.sourcePath).toLowerCase();
+      if (!['.png', '.jpg', '.jpeg'].includes(ext)) {
+        return { ok: false, message: 'Formato no soportado (usa PNG, JPG o JPEG)' };
+      }
+      const dest = path.join(deps.userDataPath, `logo${ext}`);
+      try {
+        await copyFile(input.sourcePath, dest);
+        const current = deps.config.getAll().business;
+        deps.config.updateBusiness({ ...current, logoPath: dest });
+        await deps.audit.insert({
+          event_type: 'config_change',
+          payload: { section: 'business.logo', dest },
+        });
+        return { ok: true, logoPath: dest };
+      } catch (err) {
+        return { ok: false, message: err instanceof Error ? err.message : 'Error copiando archivo' };
+      }
+    },
   };
 }
 
@@ -218,6 +251,7 @@ export function registerAdminHandlers(deps: AdminHandlerDeps): void {
   ipcMain.handle('admin:list-logs', (_e, r) => h.listLogs(r));
   ipcMain.handle('admin:rotate-password-now', (_e, r) => h.rotatePasswordNow(r));
   ipcMain.handle('admin:set-router-password', (_e, r) => h.setRouterPassword(r));
+  ipcMain.handle('admin:upload-logo', (_e, r) => h.uploadLogo(r));
 }
 
 export function unregisterAdminHandlers(): void {
@@ -229,4 +263,5 @@ export function unregisterAdminHandlers(): void {
   ipcMain.removeHandler('admin:list-logs');
   ipcMain.removeHandler('admin:rotate-password-now');
   ipcMain.removeHandler('admin:set-router-password');
+  ipcMain.removeHandler('admin:upload-logo');
 }

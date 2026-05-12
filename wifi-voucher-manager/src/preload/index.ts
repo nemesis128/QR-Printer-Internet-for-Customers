@@ -35,6 +35,8 @@ const adminApi: AdminAPI = {
     ipcRenderer.invoke('admin:rotate-password-now', input),
   setRouterPassword: (input): Promise<{ ok: boolean; message?: string }> =>
     ipcRenderer.invoke('admin:set-router-password', input),
+  uploadLogo: (input): Promise<{ ok: boolean; logoPath?: string; message?: string }> =>
+    ipcRenderer.invoke('admin:upload-logo', input),
 };
 
 const routerApi: RouterAPI = {
