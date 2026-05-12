@@ -340,6 +340,46 @@ En caso contrario instancia `TPLinkArcherAdapter`.
 
 ---
 
+## D-032 ✅ Activa — RotationOrchestrator separa runOnce (1 intento) de runWithBackoff (retry)
+
+**Decisión:** `RotationOrchestrator.runOnce()` ejecuta una rotación atómica y retorna. `runWithBackoff(triggeredBy, delaysMs)` envuelve `runOnce` con retry. El handler `admin.rotatePasswordNow` (botón manual) usa `runOnce` para no congelar la UI 21 minutos. El `SchedulerService` usa `runWithBackoff` con `[60000, 300000, 900000]` ms.
+
+**Why:** separa "intento atómico" de "política de retry". Tests con fake timers pasan delays cortos (1-15 ms) sin reescribir la lógica. Manual UX no espera 21 min.
+
+**Impacto:** UX manual click → resultado en ≤ 5 s; si falla, queda marcada para fallback manual sin reintentos.
+
+---
+
+## D-033 ✅ Activa — HealthCheckService sólo registra (D-015 prohíbe auto-fix)
+
+**Decisión:** los 6 probes (db_integrity, disk_free, log_size, last_rotation_recent, printer_reach, router_reach) corren a las 03:00 local y persisten un row `event_type='health_check'` en `audit_log` + actualizan `system.lastHealthCheckFailed` en electron-store. NO se ejecuta ningún auto-fix.
+
+**Why:** D-015 mandata que el operador humano (vía RDP) decida cómo actuar tras un fallo. Auto-fix puede generar duplicados (impresión doble) o falsos positivos.
+
+**Impacto:** WaiterView muestra dot ámbar pequeño cuando `lastHealthCheckFailed === true`. HomePanel también lo refleja. El operador revisa LogsPanel → filtro `health_check` para detalle.
+
+---
+
+## D-034 ✅ Activa — SystemConfig slice en AppConfigStore para flags transientes
+
+**Decisión:** un nuevo slice `system: { lastHealthCheckFailed, lastHealthCheckAt }` se agrega a `AppConfig`. Persiste en electron-store junto con business/schedule/admin/router.
+
+**Why:** evita una segunda librería de KV. La frecuencia de updates (1×/día) no satura el FS. Y los renderers ya tienen `useAdminConfig` que devuelve el AppConfig completo.
+
+**Impacto:** los tests de AppConfigStore necesitan cubrir el nuevo slice (Task 5 lo hace). Migración no requerida — el default kicks in cuando la key no existe.
+
+---
+
+## D-035 ✅ Activa — RouterService.applyPasswordNow acepta `triggeredBy` opcional (Fase 5 Task 1)
+
+**Decisión:** `RouterService.applyPasswordNow(credentials, passwordId, newPassword, triggeredBy = 'router-service')` ahora acepta un 4º parámetro opcional que se propaga al audit_log como `payload.triggered_by`. Los callers conocen quién disparó la rotación: scheduler / admin / startup-recovery / router-service.
+
+**Why:** sin este parámetro, todos los eventos `password_rotation` quedaban etiquetados `triggered_by='router-service'`, ocultando la causa real. El reporting de stats y el debug post-piloto necesitan distinguir entre tipos de trigger.
+
+**Impacto:** firma extendida es backward-compatible (default preserva el comportamiento anterior). Existing Fase 4 RouterService tests pasan sin cambios; Fase 5 RotationOrchestrator usa el nuevo arg para auditar `scheduler` o `admin` correctamente.
+
+---
+
 ## Excepciones registradas
 
-(Ninguna al cierre de Fase 4 parcial.)
+(Ninguna al cierre de Fase 5.)
