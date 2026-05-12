@@ -27,11 +27,17 @@ export interface RouterConfig {
   ssidGuest: string;
 }
 
+export interface SystemConfig {
+  lastHealthCheckFailed: boolean;
+  lastHealthCheckAt: string | null;
+}
+
 export interface AppConfig {
   business: BusinessConfig;
   schedule: ScheduleConfig;
   admin: AdminConfig;
   router: RouterConfig;
+  system: SystemConfig;
 }
 
 export const DEFAULT_APP_CONFIG: AppConfig = {
@@ -43,6 +49,7 @@ export const DEFAULT_APP_CONFIG: AppConfig = {
   schedule: { hour: 23, minute: 0, timezone: 'America/Mexico_City' },
   admin: { pinHash: '', pinIsDefault: true },
   router: { host: '', user: 'admin', model: 'TP-Link Archer C24', ssidGuest: '' },
+  system: { lastHealthCheckFailed: false, lastHealthCheckAt: null },
 };
 
 export class AppConfigStore {
@@ -54,6 +61,7 @@ export class AppConfigStore {
       schedule: this.backend.get('schedule', DEFAULT_APP_CONFIG.schedule),
       admin: this.backend.get('admin', DEFAULT_APP_CONFIG.admin),
       router: this.backend.get('router', DEFAULT_APP_CONFIG.router),
+      system: this.backend.get('system', DEFAULT_APP_CONFIG.system),
     };
   }
 
@@ -71,5 +79,9 @@ export class AppConfigStore {
 
   updateRouter(r: RouterConfig): void {
     this.backend.set('router', r);
+  }
+
+  updateSystem(s: SystemConfig): void {
+    this.backend.set('system', s);
   }
 }
