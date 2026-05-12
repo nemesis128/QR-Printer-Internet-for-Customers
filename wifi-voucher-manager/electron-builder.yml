@@ -30,7 +30,7 @@ win:
   target:
     - target: nsis
       arch: [x64]
-  icon: build/icon.png
+  icon: build/icon.ico
   executableName: WiFiVoucherManager
   artifactName: "${productName} Setup ${version}.${ext}"
   publisherName: Okuni Solutions
@@ -42,8 +42,8 @@ nsis:
   createDesktopShortcut: always
   createStartMenuShortcut: true
   shortcutName: WiFi Voucher Manager
-  installerIcon: build/icon.png
-  uninstallerIcon: build/icon.png
+  installerIcon: build/icon.ico
+  uninstallerIcon: build/icon.ico
   language: "3082"
   runAfterFinish: true
 
