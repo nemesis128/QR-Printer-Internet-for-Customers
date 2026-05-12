@@ -62,7 +62,8 @@ export class RouterService {
   async applyPasswordNow(
     credentials: RouterCredentials,
     passwordId: number,
-    newPassword: string
+    newPassword: string,
+    triggeredBy: string = 'router-service'
   ): Promise<RouterApplyResult> {
     const steps: StepLog[] = [];
     let failedAt: RouterStep | undefined;
@@ -81,7 +82,7 @@ export class RouterService {
       await this.deps.passwords.markAppliedAutomatically(passwordId, JSON.stringify(steps));
       await this.deps.audit.insert({
         event_type: 'password_rotation',
-        payload: { success: true, passwordId, triggered_by: 'router-service' },
+        payload: { success: true, passwordId, triggered_by: triggeredBy },
       });
       return { ok: true, routerResponse: JSON.stringify(steps) };
     } catch (err) {
@@ -93,7 +94,7 @@ export class RouterService {
       await this.deps.passwords.markPendingManualApply(passwordId);
       await this.deps.audit.insert({
         event_type: 'password_rotation',
-        payload: { success: false, passwordId, failedAt, error: message, triggered_by: 'router-service' },
+        payload: { success: false, passwordId, failedAt, error: message, triggered_by: triggeredBy },
       });
       return { ok: false, routerResponse: null, errorMessage: message, failedAt };
     }
