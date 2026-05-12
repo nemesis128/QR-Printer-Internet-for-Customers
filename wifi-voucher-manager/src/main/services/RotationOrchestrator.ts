@@ -56,4 +56,22 @@ export class RotationOrchestrator {
       errorMessage: apply.errorMessage ?? 'Aplicación falló',
     };
   }
+
+  async runWithBackoff(
+    triggeredBy: RotationTrigger,
+    delaysMs: number[]
+  ): Promise<RotationResult> {
+    const maxAttempts = delaysMs.length;
+    let lastResult: RotationResult = { ok: false, attempts: 0 };
+    for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+      lastResult = await this.runOnce(triggeredBy);
+      lastResult = { ...lastResult, attempts: attempt };
+      if (lastResult.ok) return lastResult;
+      if (attempt < maxAttempts) {
+        const delay = delaysMs[attempt - 1] ?? 0;
+        await new Promise((resolve) => setTimeout(resolve, delay));
+      }
+    }
+    return lastResult;
+  }
 }
