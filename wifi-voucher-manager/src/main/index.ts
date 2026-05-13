@@ -54,6 +54,17 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 const DEFAULT_SSID = 'Restaurante-Clientes';
 
+function resolvePreloadPath(): string {
+  // En producción el main se ejecuta desde dist-electron/main/, y el preload
+  // está en dist-electron/preload/, por eso ../preload/index.js funciona.
+  // En dev (tsx) el main se ejecuta desde src/main/, pero el preload bundleado
+  // queda en dist-electron/preload/ (npm run build:preload).
+  if (app.isPackaged) {
+    return path.join(__dirname, '../preload/index.js');
+  }
+  return path.join(__dirname, '../../dist-electron/preload/index.js');
+}
+
 async function createWindow(): Promise<void> {
   const win = new BrowserWindow({
     width: 1366,
@@ -64,7 +75,7 @@ async function createWindow(): Promise<void> {
     autoHideMenuBar: true,
     backgroundColor: '#FAFAFA',
     webPreferences: {
-      preload: path.join(__dirname, '../preload/index.js'),
+      preload: resolvePreloadPath(),
       contextIsolation: true,
       nodeIntegration: false,
       sandbox: true,
